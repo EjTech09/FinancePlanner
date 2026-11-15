@@ -333,6 +333,13 @@
       "target": "debt:imwhznmxfm",
       "label": "",
       "amount": 8541.89
+    },
+    {
+      "id": "imwi27qaz0",
+      "account": "imwhznmxfd",
+      "target": "other",
+      "label": "Transfer to EJ",
+      "amount": 2849.33
     }
   ],
   "transactions": [
@@ -388,7 +395,8 @@
     }
   ],
   "ui": {
-    "tab": "dashboard",
-    "accUser": "all"
+    "tab": "data",
+    "accUser": "imwhznmxe1",
+    "build": 2
   }
 }
