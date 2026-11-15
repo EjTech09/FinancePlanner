@@ -136,7 +136,7 @@
     },
     {
       "id": "imwhznmxfm",
-      "name": "NZ Show Money (Angela)",
+      "name": "Loan from Racelis",
       "priority": 2,
       "borrower": "imwhznmxe1",
       "creditor": "Papa Med + Mama Ellen",
@@ -291,8 +291,10 @@
     }
   ],
   "fx": {
-    "php": 36,
-    "usd": 1.8
+    "php": 35.29474522292993,
+    "usd": 1.80864,
+    "phpUpdatedAt": "2026-11-15T00:02:32.000Z",
+    "usdUpdatedAt": "2026-11-15T00:02:32.000Z"
   },
   "commitments": [
     {
@@ -300,7 +302,7 @@
       "account": "imwhznmxe9",
       "target": "debt:imwhznmxfl",
       "label": "",
-      "amount": 6232.64
+      "amount": 3446.0368011323426
     },
     {
       "id": "imwhznmxf10",
@@ -328,14 +330,14 @@
       "account": "imwhznmxfh",
       "target": "debt:imwhznmxfm",
       "label": "",
-      "amount": 2841.24
+      "amount": 21000
     },
     {
       "id": "imwhznmxf14",
       "account": "imwhznmxfg",
       "target": "debt:imwhznmxfm",
       "label": "",
-      "amount": 8541.89
+      "amount": 301483.83127229294
     },
     {
       "id": "imwi27qaz0",
@@ -371,6 +373,13 @@
       "target": "other",
       "label": "Visitor Visa Show Money",
       "amount": 5000
+    },
+    {
+      "id": "imwi4bdtb0",
+      "account": "imwhznmxfh",
+      "target": "other",
+      "label": "KORU PH",
+      "amount": 79000
     }
   ],
   "transactions": [
@@ -427,7 +436,7 @@
   ],
   "ui": {
     "tab": "data",
-    "accUser": "imwhznmxe1",
-    "build": 2
+    "accUser": "imwhznmxe2",
+    "build": 3
   }
 }
