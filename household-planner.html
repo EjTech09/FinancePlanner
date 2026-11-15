@@ -317,7 +317,7 @@ tfoot td,tfoot td.num,tfoot td.tl{border:0;padding:0}
 .rg-fg{fill:none;stroke:var(--green);stroke-width:5;stroke-linecap:round}
 .li-ring b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
 .tx-row.li{grid-template-columns:44px minmax(0,1fr) auto 12px;padding:14px}
-.tx-main .pill{display:inline-block;margin-top:6px}
+.tx-main .pill{display:block;width:fit-content;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:6px}
 .li-total{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:12px;padding:12px 16px;border:1.5px dashed var(--sep);border-radius:16px}
 .li-total small{display:block;font-size:12px;font-weight:600;color:var(--label2)}
 .li-total b{font-size:17px;font-weight:700}
@@ -328,6 +328,28 @@ tfoot td,tfoot td.num,tfoot td.tl{border:0;padding:0}
 .frow .calc.ok{color:var(--green-t)}.frow .calc.bad{color:var(--red-t)}.frow .calc.warn{color:var(--orange-t)}
 .frow .calc.ok,.frow .calc.bad,.frow .calc.warn{padding:2px 10px;margin:0;font-size:13px;font-weight:600}
 .frow .mini{margin-right:8px}
+
+.acc-item+.acc-item{border-top:.5px solid var(--sep)}
+.acc-item .tx-row{border-top:0}
+.acc-item .tx-chev{transition:transform .2s}
+.acc-item .tx-row[aria-expanded="true"] .tx-chev{transform:rotate(90deg)}
+.acc-item.open{background:color-mix(in srgb,var(--blue) 5%,transparent)}
+.acc-list:empty{display:none}
+.li-chip{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;background:var(--fill);color:var(--label2)}
+.li-chip.cur-NZD{background:color-mix(in srgb,var(--blue) 15%,transparent);color:var(--blue-t)}
+.li-chip.cur-PHP{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green-t)}
+.li-chip.cur-USD{background:color-mix(in srgb,var(--orange) 18%,transparent);color:var(--orange-t)}
+.li-ic{display:block;width:40px}
+.li-ringw{display:block;width:44px;height:44px}
+.li-detail{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start;padding:2px 14px 16px}
+.li-detail.one{grid-template-columns:minmax(0,560px)}
+@media (max-width:820px){.li-detail,.li-detail.one{grid-template-columns:minmax(0,1fr)}}
+.li-detail[hidden]{display:none}
+.li-detail .fgroup{margin:0;background:var(--card)}
+.li-detail .btn.full{grid-column:1/-1}
+.li-detail .hint{margin:-4px 4px 0;font-size:13px;color:var(--label2)}
+.li-detail .hint:empty{display:none}
+.pill.neu{color:var(--label2);background:var(--fill)}
 @media (prefers-reduced-motion:reduce){.sheet-back,.sheet-panel{transition:none}}
 @media print{.sheet-back{display:none}}
 @media (prefers-reduced-motion:no-preference){.split i,.bar i,.m-bar i,.lbar i{transition:width .3s ease}.ring-fg{transition:stroke-dasharray .6s ease}}
@@ -385,6 +407,7 @@ function normalize(s) {
   const b = blank();
   for (const k of Object.keys(b)) if (s[k] == null) s[k] = b[k];
   for (const k of ['users','income','expenses','goals','debts','accounts','commitments','transactions']) if (!Array.isArray(s[k])) s[k] = [];
+  s.income.forEach(i => { if (!i.currency) i.currency = 'NZD'; });
   s.alloc = Object.assign({}, b.alloc, s.alloc); if (s.ui && (s.ui.tab === 'goals' || s.ui.tab === 'debts')) s.ui.tab = 'plan'; s.fx = Object.assign({}, b.fx, s.fx); s.ui = Object.assign({}, b.ui, s.ui);
   return s;
 }
@@ -422,7 +445,7 @@ function plan(name, balance, committed, monthly, dueStr, noPay, doneLabel) {
 function compute() {
   const R = { accounts: {}, goals: {}, debts: {} };
   const cm = t => sum(state.commitments.filter(c => c.target === t), 'amount');
-  R.income = sum(state.income, 'amount');
+  R.income = sum(state.income, i => num(i.amount) * rate(i.currency));
   for (const a of state.accounts) {
     const r = rate(a.currency), bal = num(a.balance) * r, liab = num(a.liabilities) * r;
     const committed = sum(state.commitments.filter(c => c.account === a.id), 'amount'), net = bal - liab, free = net - committed;
@@ -482,6 +505,7 @@ function refresh() {
   $$('select[data-opts]').forEach(fillOptions);
   $$('[data-calc]').forEach(el => el._u());
   $$('tbody tr').forEach(tr => tr._check && tr._check());
+  $$('.acc-item').forEach(it => it._check && it._check());
   updateFoot();
 }
 function field(col, row) {
@@ -650,9 +674,8 @@ const planView = () => {
   tr._u(); el.append(tr);
   const gr = h('div', { class: 'bento' }); el.append(gr);
 
-  gr.append(tile(6, {}, h('h2', {}, 'Income'), h('p', { class: 'sub' }, 'Per month, in NZD.'),
-    tableView({ bare: true, compact: true, roles: { 'Source': 't', 'Monthly (NZD)': 'k' }, coll: 'income', addLabel: 'Add income', blank: () => ({ source: '', user: '', amount: '' }),
-      cols: [{ label: 'Source', key: 'source', type: 'text', w: 150 }, { label: 'User', key: 'user', type: 'select', opts: userOpts }, { label: 'Monthly (NZD)', key: 'amount', type: 'number', total: () => money(D().income) }] })));
+  gr.append(tile(6, {}, h('h2', {}, 'Income'), h('p', { class: 'sub' }, 'Per month. Pick a currency for each source and it is converted to NZD. Tap a source to edit it.'),
+    incomeBody()));
 
   const lb = h('section', { class: 'tile s-6', 'data-calc': '' });
   lb._u = () => {
@@ -672,21 +695,14 @@ const planView = () => {
       h('div', { class: 'sec-head' }, h('h2', {}, title), h('label', { class: 'share' }, 'Share of income', share, '%')),
       sub ? h('p', { class: 'sub' }, sub) : null, m, body);
   };
-  const expenses = (k, label) => tableView({ bare: true, compact: true, roles: { 'Expense': 't', 'Monthly (NZD)': 'k' }, coll: 'expenses', addLabel: label, filter: e => e.category === k, blank: () => ({ name: '', category: k, user: '', amount: '' }),
-    cols: [{ label: 'Expense', key: 'name', type: 'text', w: 150 }, { label: 'User', key: 'user', type: 'select', opts: userOpts }, { label: 'Monthly (NZD)', key: 'amount', type: 'number', total: () => money(D().budgeted[k]) }] });
+  const expenses = (k, label) => expenseBody(k, label);
   const G = g => D().goals[g.id], Dd = d => D().debts[d.id];
   const prog = (saved, total) => { const p = total > 0 ? Math.min(saved / total, 1) * 100 : 0; return { html: `<span class="mini"><i style="width:${p}%"></i></span>${money(saved, 0)} (${p.toFixed(0)}%)` }; };
 
-  gr.append(alloc('essential', 'Essential expenses', 'Rent, food, transport and other costs you cannot skip.', expenses('essential', 'Add essential expense'), 6));
-  gr.append(alloc('discretionary', 'Discretionary expenses', 'Eating out, treats and anything you can trim.', expenses('discretionary', 'Add discretionary expense'), 6));
-  const addGoal = () => { const r = { id: uid(), name: '', user: '', target: '', date: '', monthly: '' }; state.goals.push(r); commit(); openGoalSheet(r, true); };
-  const addDebt = () => { const r = { id: uid(), name: '', priority: '', borrower: '', creditor: '', due: '', currency: 'NZD', balance: '', monthly: '' }; state.debts.push(r); commit(); openDebtSheet(r, true); };
-  gr.append(alloc('savings', 'Savings goals', 'Tap a goal to see everything and change its monthly amount. Money already set aside comes from the Accounts page.',
-    listBlock(rowList(() => state.goals, goalRowEl, 'No goals yet. Add the first one.'),
-      totalsEl(() => [['Target total', money(sum(state.goals, 'target'))], ['Saved so far', money(sum(Object.values(D().goals), 'saved'))], ['Monthly total', money(sum(state.goals, 'monthly'))]]), 'Add goal', addGoal), 12));
-  gr.append(alloc('debt', 'Debt service', 'Tap a debt to see everything and set its monthly payment. Priority 1 is paid first.',
-    listBlock(rowList(() => state.debts.slice().sort((x, y) => (x.priority === '' ? 999 : num(x.priority)) - (y.priority === '' ? 999 : num(y.priority))), debtRowEl, 'No debts recorded. Add the first one.'),
-      totalsEl(() => { const R = D(); return [['Owed (NZD)', money(R.debtTotal)], ['Covered', money(R.debtFunded)], ['Still to find', money(R.debtUnfunded)], ['Monthly total', money(sum(state.debts, 'monthly'))]]; }), 'Add debt', addDebt), 12));
+  gr.append(alloc('essential', 'Essential expenses', 'Rent, food, transport and other costs you cannot skip. Tap one to edit it.', expenses('essential', 'Add essential expense'), 6));
+  gr.append(alloc('discretionary', 'Discretionary expenses', 'Eating out, treats and anything you can trim. Tap one to edit it.', expenses('discretionary', 'Add discretionary expense'), 6));
+  gr.append(alloc('savings', 'Savings goals', 'Tap a goal to see everything and change its monthly amount. Money already set aside comes from the Accounts page.', goalsBody(), 12));
+  gr.append(alloc('debt', 'Debt service', 'Tap a debt to see everything and set its monthly payment. Priority 1 is paid first.', debtsBody(), 12));
   return el;
 };
 
@@ -694,6 +710,210 @@ const accFilter = () => { const f = state.ui.accUser || 'all'; return (f === 'al
 const accMatch = a => { const f = accFilter(); return f === 'all' ? true : f === 'none' ? !a.user : a.user === f; };
 const comMatch = c => { const a = state.accounts.find(x => x.id === c.account); return a ? accMatch(a) : true; };
 const visAcc = () => state.accounts.filter(accMatch);
+/* ---------- accounts: lists whose rows expand in place ---------- */
+function liv(fn, tag, cls) { const e = h(tag || 'span', { class: cls || '', 'data-calc': '' }); e._u = () => { e.innerHTML = fn(); }; e._u(); return e; }
+function itemList(coll, filter, mkItem, emptyMsg) {
+  const list = h('div', { class: 'tx-card acc-list' });
+  state[coll].filter(filter).forEach(r => list.append(mkItem(r)));
+  const empty = liv(() => list.children.length ? '' : `<p class="empty">${emptyMsg}</p>`, 'div');
+  return { list, empty };
+}
+function expandable(item, head, detail) {
+  const set = on => { const open = on == null ? head.getAttribute('aria-expanded') !== 'true' : on; head.setAttribute('aria-expanded', String(open)); detail.hidden = !open; item.classList.toggle('open', open); };
+  head.addEventListener('click', () => set());
+  item._open = set; item.append(head, detail);
+}
+function accItem(a) {
+  const R = () => D().accounts[a.id] || { bal: 0, net: 0, committed: 0, free: 0, status: '' };
+  const item = h('div', { class: 'acc-item', 'data-id': a.id });
+  const chip = h('span', { 'data-calc': '' }); chip._u = () => { chip.className = 'li-chip cur-' + (a.currency || 'none'); chip.textContent = a.currency || '\u2014'; }; chip._u();
+  const head = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' }, chip,
+    h('span', { class: 'tx-main' }, liv(() => esc(a.name || 'Untitled account'), 'b'),
+      liv(() => `${esc(nameOf('users', a.user) || 'No user')}, ${money(R().net)} after liabilities`, 'small'),
+      liv(() => `<span class="pill ${cls(R().status)}" title="${esc(R().status)}">${esc(R().status)}</span>`, 'span')),
+    h('span', { class: 'tx-amt' }, liv(() => `<span class="${R().free < -0.005 ? 'bad' : ''}">${money(R().free)}</span>`, 'b'), h('small', {}, 'free to use')),
+    h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a'));
+  const detail = h('div', { class: 'li-detail', hidden: true },
+    h('div', { class: 'fgroup' },
+      sRow('Account', field(sCol('Account', 'name', 'text', { ph: 'e.g. Everyday account' }), a)), sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), a)),
+      sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), a)), sRow('Balance', field(sCol('Balance', 'balance', 'number'), a)),
+      sRow('Liabilities due', field(sCol('Liabilities due', 'liabilities', 'number'), a))),
+    h('div', { class: 'fgroup' },
+      sCalc('Balance (NZD)', () => money(R().bal)), sCalc('After liabilities', () => money(R().net)), sCalc('Set aside', () => money(R().committed)),
+      sCalc('Free to use', () => money(R().free)), sCalc('Status', () => ({ t: R().status, cls: cls(R().status) }))),
+    h('button', { class: 'btn danger full', type: 'button', onclick: () => {
+      if (!confirm('Delete this account? Money set aside from it will be removed too.')) return;
+      state.accounts = state.accounts.filter(r => r !== a); detach('accounts', a.id); commit(); render();
+    } }, 'Delete account'));
+  expandable(item, head, detail);
+  item._check = () => { if (!accMatch(a)) item.remove(); };
+  return item;
+}
+function comItem(c) {
+  const kind = () => (c.target || '').startsWith('debt:') ? 'debt' : (c.target || '').startsWith('goal:') ? 'goal' : 'other';
+  const what = () => kind() === 'debt' ? (nameOf('debts', c.target.slice(5)) || 'Unknown debt') : kind() === 'goal' ? (nameOf('goals', c.target.slice(5)) || 'Unknown goal') : (c.label || 'Something else');
+  const KIND = { debt: 'Debt', goal: 'Goal', other: 'Other' };
+  const item = h('div', { class: 'acc-item', 'data-id': c.id });
+  const head = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
+    liv(() => txIcon(kind() === 'other' ? 'transfer' : kind()), 'span', 'li-ic'),
+    h('span', { class: 'tx-main' }, liv(() => esc(what()), 'b'), liv(() => 'From ' + esc(nameOf('accounts', c.account) || 'no account'), 'small'), liv(() => `<span class="pill neu">${KIND[kind()]}</span>`, 'span')),
+    h('span', { class: 'tx-amt' }, liv(() => money(num(c.amount)), 'b'), h('small', {}, 'set aside')),
+    h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a'));
+  const detail = h('div', { class: 'li-detail one', hidden: true },
+    h('div', { class: 'fgroup' },
+      sRow('Account', field(sCol('Account', 'account', 'select', { opts: accOpts }), c)), sRow('Set aside for', field(sCol('Set aside for', 'target', 'select', { opts: targetOpts }), c)),
+      sRow('Note', field(sCol('Note (if something else)', 'label', 'text', { ph: 'e.g. Holiday fund' }), c)), sRow('Amount (NZD)', field(sCol('Amount (NZD)', 'amount', 'number'), c))),
+    h('button', { class: 'btn danger full', type: 'button', onclick: () => {
+      if (!confirm('Delete this line? This cannot be undone.')) return;
+      state.commitments = state.commitments.filter(r => r !== c); item.remove(); commit();
+    } }, 'Delete this line'));
+  expandable(item, head, detail);
+  item._check = () => { if (!comMatch(c)) item.remove(); };
+  return item;
+}
+const KIND_COLOR = { income: '--c2', essential: '--c1', discretionary: '--c4' };
+const KIND_ICON = { income: '<path d="M12 5v14M12 19l-5-5M12 19l5-5"/>', essential: '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>', discretionary: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/>' };
+const kindIcon = k => `<span class="tx-ic" style="--tc:var(${KIND_COLOR[k]})"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${KIND_ICON[k]}</svg></span>`;
+const pctOf = (x, total) => total > 0 ? num(x) / total * 100 : 0;
+function moneyItem(r, kind, labels, coll, shareOfSection) {
+  const nameKey = kind === 'income' ? 'source' : 'name', title = kind === 'income' ? 'income' : 'expense';
+  const nzd = () => num(r.amount) * rate(r.currency || 'NZD');
+  const foreign = () => r.currency && r.currency !== 'NZD';
+  const item = h('div', { class: 'acc-item', 'data-id': r.id });
+  const head = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
+    liv(() => kindIcon(kind), 'span', 'li-ic'),
+    h('span', { class: 'tx-main' }, liv(() => esc(r[nameKey] || labels.untitled), 'b'), liv(() => esc(nameOf('users', r.user) || 'No user'), 'small'),
+      liv(() => `<span class="pill neu">${pctOf(nzd(), D().income).toFixed(0)}% of income</span>`, 'span')),
+    h('span', { class: 'tx-amt' }, liv(() => money(nzd()), 'b'),
+      liv(() => foreign() ? `${esc(r.currency)} ${num(r.amount).toLocaleString('en-NZ', { maximumFractionDigits: 2 })}` : 'a month', 'small')),
+    h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a'));
+  const editable = [sRow(labels.field, field(sCol(labels.field, nameKey, 'text', { ph: labels.ph }), r)), sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), r))];
+  if (labels.currency) editable.push(sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), r)));
+  editable.push(sRow(labels.amount, field(sCol(labels.amount, 'amount', 'number'), r)));
+  const insights = [];
+  if (labels.currency) insights.push(sCalc('Amount in NZD', () => money(nzd())));
+  insights.push(sCalc('Share of income', () => pctOf(nzd(), D().income).toFixed(1) + '%'));
+  if (shareOfSection) insights.push(sCalc('Share of ' + labels.section, () => pctOf(nzd(), D().budgeted[kind]).toFixed(1) + '%'));
+  const detail = h('div', { class: 'li-detail one', hidden: true },
+    h('div', { class: 'fgroup' }, editable),
+    labels.currency ? liv(() => foreign() ? 'Converted to NZD using the exchange rates on the Accounts page.' : '', 'p', 'hint') : null,
+    h('div', { class: 'fgroup' }, insights),
+    h('button', { class: 'btn danger full', type: 'button', onclick: () => {
+      if (!confirm('Delete this ' + title + '? This cannot be undone.')) return;
+      state[coll] = state[coll].filter(x => x !== r); item.remove(); commit();
+    } }, labels.del));
+  expandable(item, head, detail); return item;
+}
+const incItem = r => moneyItem(r, 'income', { untitled: 'Untitled income', field: 'Source', ph: 'e.g. Salary', del: 'Delete income', currency: true, amount: 'Monthly amount' }, 'income', false);
+const expItem = r => moneyItem(r, r.category, { untitled: 'Untitled expense', field: 'Expense', ph: 'e.g. Groceries', del: 'Delete expense', amount: 'Monthly (NZD)', section: r.category === 'essential' ? 'essential expenses' : 'discretionary expenses' }, 'expenses', true);
+function incomeBody() {
+  const { list, empty } = itemList('income', () => true, incItem, 'No income yet. Add the first source.');
+  const add = () => { const r = { id: uid(), source: '', user: '', amount: '', currency: 'NZD' }; state.income.push(r); dirty = true; const it = incItem(r); list.append(it); it._open(true); commit(); const f = $('input', it); if (f) f.focus(); };
+  return h('div', {}, h('div', { class: 'li-wrap' }, list, empty), totalsEl(() => [['Total monthly income', money(D().income)], ['Sources', String(state.income.length)]]),
+    h('button', { class: 'add', type: 'button', onclick: add }, 'Add income'));
+}
+function expenseBody(k, label) {
+  const { list, empty } = itemList('expenses', e => e.category === k, expItem, 'Nothing here yet. Add the first one.');
+  const add = () => { const r = { id: uid(), name: '', category: k, user: '', amount: '' }; state.expenses.push(r); dirty = true; const it = expItem(r); list.append(it); it._open(true); commit(); const f = $('input', it); if (f) f.focus(); };
+  return h('div', {}, h('div', { class: 'li-wrap' }, list, empty),
+    totalsEl(() => [['Budgeted', money(D().budgeted[k])], ['Share of income', pctOf(D().budgeted[k], D().income).toFixed(1) + '%'], ['Items', String(state.expenses.filter(e => e.category === k).length)]]),
+    h('button', { class: 'add', type: 'button', onclick: add }, label));
+}
+
+function goalItem(g) {
+  const R = () => D().goals[g.id] || { saved: 0, hasTarget: false, status: '', remaining: 0, projected: null, required: null };
+  const pct = () => { const r = R(); return r.hasTarget && num(g.target) > 0 ? Math.min(r.saved / num(g.target), 1) * 100 : 0; };
+  const item = h('div', { class: 'acc-item', 'data-id': g.id });
+  const head = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
+    liv(() => ring(pct()), 'span', 'li-ringw'),
+    h('span', { class: 'tx-main' }, liv(() => esc(g.name || 'Untitled goal'), 'b'),
+      liv(() => { const r = R(); return (r.hasTarget ? 'Saved ' + money(r.saved, 0) + ' of ' + money(num(g.target), 0) : 'No target set') + (r.projected ? ', reached ' + fmtDate(r.projected) : ''); }, 'small'),
+      liv(() => `<span class="pill ${cls(R().status)}" title="${esc(R().status)}">${esc(R().status)}</span>`, 'span')),
+    h('span', { class: 'tx-amt' }, liv(() => money(num(g.monthly)), 'b'), h('small', {}, 'a month')),
+    h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a'));
+  const detail = h('div', { class: 'li-detail', hidden: true },
+    h('div', { class: 'fgroup' },
+      sRow('Goal', field(sCol('Goal', 'name', 'text', { ph: 'e.g. House deposit' }), g)), sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), g)),
+      sRow('Target (NZD)', field(sCol('Target (NZD)', 'target', 'number'), g)), sRow('Target date', field(sCol('Target date', 'date', 'date'), g)),
+      sRow('Monthly (NZD)', field(sCol('Monthly (NZD)', 'monthly', 'number'), g))),
+    h('div', { class: 'fgroup' },
+      sCalc('Saved so far', () => R().hasTarget ? progH(R().saved, num(g.target)) : money(R().saved)), sCalc('Still to save', () => R().hasTarget ? money(R().remaining) : '\u2014'),
+      sCalc('Reached by', () => R().projected ? fmtDate(R().projected) : '\u2014'), sCalc('Needed monthly', () => R().required == null ? '\u2014' : money(R().required)),
+      sCalc('Status', () => ({ t: R().status, cls: cls(R().status) }))),
+    h('button', { class: 'btn danger full', type: 'button', onclick: () => {
+      if (!confirm('Delete this goal? Money set aside for it will be kept as "something else".')) return;
+      state.goals = state.goals.filter(r => r !== g); detach('goals', g.id); item.remove(); commit();
+    } }, 'Delete goal'));
+  expandable(item, head, detail); return item;
+}
+function debtItem(d) {
+  const R = () => D().debts[d.id] || { bal: 0, funded: 0, unfunded: 0, status: '', projected: null, required: null };
+  const pct = () => { const r = R(); return r.bal > 0 ? Math.min(r.funded / r.bal, 1) * 100 : 0; };
+  const item = h('div', { class: 'acc-item', 'data-id': d.id });
+  const head = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
+    liv(() => ring(pct()), 'span', 'li-ringw'),
+    h('span', { class: 'tx-main' }, liv(() => esc(d.name || 'Untitled debt'), 'b'),
+      liv(() => { const r = R(); return `${money(r.bal, 0)} owed, ${r.unfunded < 0.005 ? 'fully covered' + (r.funded - r.bal > 0.5 ? ', ' + money(r.funded - r.bal, 0) + ' extra set aside' : '') : money(r.unfunded, 0) + ' still to find'}${d.due ? ', due ' + dueDate(d.due) : ''}`; }, 'small'),
+      liv(() => `<span class="pill ${cls(R().status)}" title="${esc(R().status)}">${esc(R().status)}</span>`, 'span')),
+    h('span', { class: 'tx-amt' }, liv(() => money(num(d.monthly)), 'b'), h('small', {}, 'a month')),
+    h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a'));
+  const detail = h('div', { class: 'li-detail', hidden: true },
+    h('div', { class: 'fgroup' },
+      sRow('Debt', field(sCol('Debt', 'name', 'text', { ph: 'e.g. Car loan' }), d)), sRow('Priority', field(sCol('Priority', 'priority', 'number'), d)),
+      sRow('Borrower', field(sCol('Borrower', 'borrower', 'select', { opts: userOpts }), d)), sRow('Owed to', field(sCol('Owed to', 'creditor', 'text'), d)),
+      sRow('Due date', field(sCol('Due date', 'due', 'date'), d)), sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), d)),
+      sRow('Balance', field(sCol('Balance', 'balance', 'number'), d)), sRow('Monthly payment (NZD)', field(sCol('Monthly payment (NZD)', 'monthly', 'number'), d))),
+    h('div', { class: 'fgroup' },
+      sCalc('Balance (NZD)', () => money(R().bal)), sCalc('Covered so far', () => progH(R().funded, R().bal)), sCalc('Still to find', () => money(R().unfunded)),
+      sCalc('Repaid by', () => R().projected && R().bal > 0 ? fmtDate(R().projected) : '\u2014'), sCalc('Needed monthly', () => R().required == null ? '\u2014' : money(R().required)),
+      sCalc('Status', () => ({ t: R().status, cls: cls(R().status) }))),
+    h('button', { class: 'btn danger full', type: 'button', onclick: () => {
+      if (!confirm('Delete this debt? Money set aside for it will be kept as "something else".')) return;
+      state.debts = state.debts.filter(r => r !== d); detach('debts', d.id); item.remove(); commit();
+    } }, 'Delete debt'));
+  expandable(item, head, detail); return item;
+}
+const byPriority = (x, y) => (x.priority === '' || x.priority == null ? 999 : num(x.priority)) - (y.priority === '' || y.priority == null ? 999 : num(y.priority));
+function goalsBody() {
+  const { list, empty } = itemList('goals', () => true, goalItem, 'No goals yet. Add the first one.');
+  const add = () => { const r = { id: uid(), name: '', user: '', target: '', date: '', monthly: '' }; state.goals.push(r); dirty = true; const it = goalItem(r); list.append(it); it._open(true); commit(); const f = $('input', it); if (f) f.focus(); };
+  return h('div', {}, h('div', { class: 'li-wrap' }, list, empty),
+    totalsEl(() => [['Target total', money(sum(state.goals, 'target'))], ['Saved so far', money(sum(Object.values(D().goals), 'saved'))], ['Monthly total', money(sum(state.goals, 'monthly'))]]),
+    h('button', { class: 'add', type: 'button', onclick: add }, 'Add goal'));
+}
+function debtsBody() {
+  const list = h('div', { class: 'tx-card acc-list' });
+  state.debts.slice().sort(byPriority).forEach(d => list.append(debtItem(d)));
+  const empty = liv(() => list.children.length ? '' : '<p class="empty">No debts recorded. Add the first one.</p>', 'div');
+  const add = () => { const r = { id: uid(), name: '', priority: '', borrower: '', creditor: '', due: '', currency: 'NZD', balance: '', monthly: '' }; state.debts.push(r); dirty = true; const it = debtItem(r); list.append(it); it._open(true); commit(); const f = $('input', it); if (f) f.focus(); };
+  return h('div', {}, h('div', { class: 'li-wrap' }, list, empty),
+    totalsEl(() => { const R = D(); return [['Owed (NZD)', money(R.debtTotal)], ['Covered', money(R.debtFunded)], ['Still to find', money(R.debtUnfunded)], ['Monthly total', money(sum(state.debts, 'monthly'))]]; }),
+    h('button', { class: 'add', type: 'button', onclick: add }, 'Add debt'));
+}
+
+function accountsTile() {
+  const { list, empty } = itemList('accounts', accMatch, accItem, 'No accounts for this selection. Add one below.');
+  const add = () => {
+    const g = accFilter(), r = { id: uid(), name: '', user: (g !== 'all' && g !== 'none') ? g : '', currency: 'NZD', balance: '', liabilities: '' };
+    state.accounts.push(r); dirty = true; const it = accItem(r); list.append(it); it._open(true); commit(); const f = $('input', it); if (f) f.focus();
+  };
+  return tile(12, {}, h('h2', {}, 'Account balances'), h('p', { class: 'sub' }, 'Tap an account to see and edit everything. Liabilities are bills due soon. Set aside is money already promised, listed in the next section.'),
+    h('div', { class: 'li-wrap' }, list, empty),
+    totalsEl(() => { const A = visAcc().map(a => D().accounts[a.id]).filter(Boolean); return [['Balance (NZD)', money(sum(A, 'bal'))], ['After liabilities', money(sum(A, 'net'))], ['Set aside', money(sum(A, 'committed'))], ['Free to use', money(sum(A, 'free'))]]; }),
+    h('button', { class: 'add', type: 'button', onclick: add }, 'Add account'));
+}
+function setAsideTile() {
+  const { list, empty } = itemList('commitments', comMatch, comItem, 'Nothing set aside for this selection yet. Add a line below.');
+  const add = () => {
+    const v = visAcc(), r = { id: uid(), account: (accFilter() !== 'all' && v.length) ? v[0].id : '', target: 'other', label: '', amount: '' };
+    state.commitments.push(r); dirty = true; const it = comItem(r); list.append(it); it._open(true); commit(); const f = $('select,input', it); if (f) f.focus();
+  };
+  return tile(12, {}, h('h2', {}, 'Money set aside'), h('p', { class: 'sub' }, 'One line per amount you have promised to something. Tap a line to edit it. An account can have as many lines as you need.'),
+    h('div', { class: 'li-wrap' }, list, empty),
+    totalsEl(() => [['Total set aside', money(sum(state.commitments.filter(comMatch), 'amount'))], ['Lines', String(state.commitments.filter(comMatch).length)]]),
+    h('button', { class: 'add', type: 'button', onclick: add }, 'Add a line'));
+}
+
 const accountsView = () => {
   const f = accFilter();
   const el = h('div', {}, head('Accounts', 'Balances stay in each account\u2019s own currency and are converted to NZD with the rates below. Use the filter to look at one person at a time.'));
@@ -710,19 +930,7 @@ const accountsView = () => {
     kpiTile('After liabilities', sel('net'), 'balance less bills due'),
     kpiTile('Set aside', sel('committed'), 'promised to something'),
     kpiTile('Free to use', sel('free'), 'after liabilities and set aside'),
-    tableView({ title: 'Account balances', note: 'Liabilities are bills due soon. Set aside is money already promised, listed in the next table.', roles: { 'Account': 't', 'After liabilities': 'k', 'Free to use': 'k', 'Status': 's' }, coll: 'accounts', addLabel: 'Add account', filter: accMatch,
-      blank: () => { const g = accFilter(); return { name: '', user: (g !== 'all' && g !== 'none') ? g : '', currency: 'NZD', balance: '', liabilities: '' }; },
-      cols: [{ label: 'Account', key: 'name', type: 'text', w: 210 }, { label: 'User', key: 'user', type: 'select', opts: userOpts }, { label: 'Currency', key: 'currency', type: 'select', opts: curOpts },
-        { label: 'Balance', key: 'balance', type: 'number' }, { label: 'Liabilities due', key: 'liabilities', type: 'number' },
-        { label: 'Balance (NZD)', calc: a => money(A(a).bal), num: 1, total: tot('bal') },
-        { label: 'After liabilities', calc: a => money(A(a).net), num: 1, total: tot('net') },
-        { label: 'Set aside', calc: a => money(A(a).committed), num: 1, total: tot('committed') },
-        { label: 'Free to use', calc: a => money(A(a).free), num: 1, total: tot('free') },
-        { label: 'Status', calc: a => ({ t: A(a).status, cls: cls(A(a).status) }) }] }),
-    tableView({ title: 'Money set aside', note: 'One line per amount you have promised to something. An account can have as many lines as you need.', roles: { 'Account': 't', 'Set aside for': 'k', 'Amount (NZD)': 'k' }, coll: 'commitments', addLabel: 'Add a line', filter: comMatch,
-      blank: () => { const v = visAcc(); return { account: (accFilter() !== 'all' && v.length) ? v[0].id : '', target: 'other', label: '', amount: '' }; },
-      cols: [{ label: 'Account', key: 'account', type: 'select', opts: accOpts, w: 200 }, { label: 'Set aside for', key: 'target', type: 'select', opts: targetOpts, w: 180 },
-        { label: 'Note (if something else)', key: 'label', type: 'text', ph: 'e.g. Holiday fund', w: 190 }, { label: 'Amount (NZD)', key: 'amount', type: 'number', total: () => money(sum(state.commitments.filter(comMatch), 'amount')) }] })));
+    accountsTile(), setAsideTile()));
   return el;
 };
 
@@ -816,11 +1024,6 @@ function openFormSheet(cfg) {
 const sRow = (label, ctrl) => h('label', { class: 'frow' }, h('span', { class: 'fl' }, label), ctrl);
 const sCalc = (label, fn) => h('div', { class: 'frow' }, h('span', { class: 'fl' }, label), calcEl(fn));
 const sCol = (label, key, type, extra) => Object.assign({ label, key, type }, extra);
-function sheetMeter(k) {
-  const [, name, c] = CATS.find(x => x[0] === k);
-  const wrap = h('div', { class: 'sheet-sum', style: '--sc:var(--' + c + ')' }, h('div', { class: 'sum-t' }, 'Left to allocate in ' + name));
-  const m = h('div', { class: 'meter', 'data-calc': '' }); m._u = () => { m.innerHTML = meterHtml(k); }; m._u(); wrap.append(m); return wrap;
-}
 function openTxSheet(row, isNew) {
   openFormSheet({ row, isNew, coll: 'transactions', title: 'Transaction', newTitle: 'New transaction', deleteLabel: 'Delete transaction', confirmText: 'Delete this transaction? This cannot be undone.',
     isBlank: r => !r.description && !hasAmount(r) && !r.related,
@@ -835,56 +1038,7 @@ function openTxSheet(row, isNew) {
 const ring = p => `<span class="li-ring"><svg viewBox="0 0 44 44" width="44" height="44" aria-hidden="true"><circle class="rg-bg" cx="22" cy="22" r="18"/><circle class="rg-fg" cx="22" cy="22" r="18" stroke-dasharray="${(p / 100 * 113.1).toFixed(1)} 113.1" transform="rotate(-90 22 22)"${p < 0.5 ? ' style="display:none"' : ''}/></svg><b>${Math.round(p)}%</b></span>`;
 const progH = (saved, total) => { const p = total > 0 ? Math.min(saved / total, 1) * 100 : 0; return { html: `<span class="mini"><i style="width:${p}%"></i></span>${money(saved, 0)} (${p.toFixed(0)}%)` }; };
 const dueDate = s => fmtDate(new Date(s + 'T00:00:00'));
-function goalRowEl(g) {
-  const r = D().goals[g.id], pct = r.hasTarget && num(g.target) > 0 ? Math.min(r.saved / num(g.target), 1) * 100 : 0;
-  const b = h('button', { class: 'tx-row li', type: 'button', 'data-id': g.id, onclick: () => openGoalSheet(g, false) });
-  b.innerHTML = `${ring(pct)}<span class="tx-main"><b>${esc(g.name || 'Untitled goal')}</b><small>${r.hasTarget ? 'Saved ' + money(r.saved, 0) + ' of ' + money(num(g.target), 0) : 'No target set'}${r.projected ? ', reached ' + fmtDate(r.projected) : ''}</small><span class="pill ${cls(r.status)}">${esc(r.status)}</span></span>
-    <span class="tx-amt"><b>${money(num(g.monthly))}</b><small>a month</small></span><span class="tx-chev" aria-hidden="true">\u203a</span>`;
-  return b;
-}
-function debtRowEl(d) {
-  const r = D().debts[d.id], pct = r.bal > 0 ? Math.min(r.funded / r.bal, 1) * 100 : 0;
-  const b = h('button', { class: 'tx-row li', type: 'button', 'data-id': d.id, onclick: () => openDebtSheet(d, false) });
-  b.innerHTML = `${ring(pct)}<span class="tx-main"><b>${esc(d.name || 'Untitled debt')}</b><small>${money(r.bal, 0)} owed, ${r.unfunded < 0.005 ? 'fully covered' + (r.funded - r.bal > 0.5 ? ', ' + money(r.funded - r.bal, 0) + ' extra set aside' : '') : money(r.unfunded, 0) + ' still to find'}${d.due ? ', due ' + dueDate(d.due) : ''}</small><span class="pill ${cls(r.status)}">${esc(r.status)}</span></span>
-    <span class="tx-amt"><b>${money(num(d.monthly))}</b><small>a month</small></span><span class="tx-chev" aria-hidden="true">\u203a</span>`;
-  return b;
-}
-function rowList(rows, rowEl, emptyMsg) {
-  const wrap = h('div', { class: 'li-wrap', 'data-calc': '' });
-  wrap._u = () => {
-    wrap.innerHTML = ''; const list = rows();
-    if (!list.length) { wrap.append(h('p', { class: 'empty' }, emptyMsg)); return; }
-    wrap.append(h('div', { class: 'tx-card' }, list.map(rowEl)));
-  };
-  wrap._u(); return wrap;
-}
 function totalsEl(fn) { const t = h('div', { class: 'li-total', 'data-calc': '' }); t._u = () => { t.innerHTML = fn().map(([l, v]) => `<div><small>${l}</small><b>${v}</b></div>`).join(''); }; t._u(); return t; }
-const listBlock = (list, totals, label, onAdd) => h('div', {}, list, totals, h('button', { class: 'add', type: 'button', onclick: onAdd }, label));
-function openGoalSheet(g, isNew) {
-  const G = () => D().goals[g.id];
-  openFormSheet({ row: g, isNew, coll: 'goals', title: 'Goal', newTitle: 'New goal', deleteLabel: 'Delete goal', confirmText: 'Delete this goal? Money set aside for it will be kept as "something else".',
-    isBlank: r => !r.name && (r.target === '' || r.target == null) && (r.monthly === '' || r.monthly == null), summary: sheetMeter('savings'),
-    groups: [
-      [sRow('Goal', field(sCol('Goal', 'name', 'text', { ph: 'e.g. House deposit' }), g)), sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), g)),
-        sRow('Target (NZD)', field(sCol('Target (NZD)', 'target', 'number'), g)), sRow('Target date', field(sCol('Target date', 'date', 'date'), g)), sRow('Monthly (NZD)', field(sCol('Monthly (NZD)', 'monthly', 'number'), g))],
-      [sCalc('Saved so far', () => G().hasTarget ? progH(G().saved, num(g.target)) : money(G().saved)), sCalc('Still to save', () => G().hasTarget ? money(G().remaining) : '\u2014'),
-        sCalc('Reached by', () => G().projected ? fmtDate(G().projected) : '\u2014'), sCalc('Needed monthly', () => G().required == null ? '\u2014' : money(G().required)),
-        sCalc('Status', () => ({ t: G().status, cls: cls(G().status) }))]] });
-}
-function openDebtSheet(d, isNew) {
-  const Dd = () => D().debts[d.id];
-  openFormSheet({ row: d, isNew, coll: 'debts', title: 'Debt', newTitle: 'New debt', deleteLabel: 'Delete debt', confirmText: 'Delete this debt? Money set aside for it will be kept as "something else".',
-    isBlank: r => !r.name && (r.balance === '' || r.balance == null) && (r.monthly === '' || r.monthly == null), summary: sheetMeter('debt'),
-    groups: [
-      [sRow('Debt', field(sCol('Debt', 'name', 'text', { ph: 'e.g. Car loan' }), d)), sRow('Priority', field(sCol('Priority', 'priority', 'number'), d)),
-        sRow('Borrower', field(sCol('Borrower', 'borrower', 'select', { opts: userOpts }), d)), sRow('Owed to', field(sCol('Owed to', 'creditor', 'text'), d)),
-        sRow('Due date', field(sCol('Due date', 'due', 'date'), d)), sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), d)),
-        sRow('Balance', field(sCol('Balance', 'balance', 'number'), d)), sRow('Monthly payment (NZD)', field(sCol('Monthly payment (NZD)', 'monthly', 'number'), d))],
-      [sCalc('Balance (NZD)', () => money(Dd().bal)), sCalc('Covered so far', () => progH(Dd().funded, Dd().bal)), sCalc('Still to find', () => money(Dd().unfunded)),
-        sCalc('Repaid by', () => Dd().projected ? fmtDate(Dd().projected) : '\u2014'), sCalc('Needed monthly', () => Dd().required == null ? '\u2014' : money(Dd().required)),
-        sCalc('Status', () => ({ t: Dd().status, cls: cls(Dd().status) }))]] });
-}
-
 const txView = () => {
   const el = h('div', {}, head('Transactions', 'A record of money in and out. It is for tracking only and does not change balances or the budget. Tap a transaction to see and edit the details.'));
   const f = state.ui.txType || 'all';
