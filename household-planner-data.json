@@ -21,19 +21,22 @@
       "id": "imwhznmxfp",
       "source": "Salary / Wages",
       "user": "imwhznmxe1",
-      "amount": 3500
+      "amount": 3500,
+      "currency": "NZD"
     },
     {
       "id": "imwhznmxfq",
-      "source": "Salary / Part-time",
+      "source": "Ejay - Wise NZD",
       "user": "imwhznmxe0",
-      "amount": 1667
+      "amount": 1667,
+      "currency": "NZD"
     },
     {
       "id": "imwhznmxfr",
       "source": "Other / Freelance",
       "user": "imwhznmxe2",
-      "amount": 0
+      "amount": 0,
+      "currency": "NZD"
     }
   ],
   "alloc": {
@@ -340,6 +343,34 @@
       "target": "other",
       "label": "Transfer to EJ",
       "amount": 2849.33
+    },
+    {
+      "id": "imwi2nc2v0",
+      "account": "imwhznmxeb",
+      "target": "other",
+      "label": "Partnership Visa Application Fee",
+      "amount": 1630
+    },
+    {
+      "id": "imwi2nuwm1",
+      "account": "imwhznmxeb",
+      "target": "other",
+      "label": "Partnership Show Money",
+      "amount": 5000
+    },
+    {
+      "id": "imwi2oco32",
+      "account": "imwhznmxeb",
+      "target": "other",
+      "label": "Visitor Visa Application Fee",
+      "amount": 441
+    },
+    {
+      "id": "imwi2pg443",
+      "account": "imwhznmxeb",
+      "target": "other",
+      "label": "Visitor Visa Show Money",
+      "amount": 5000
     }
   ],
   "transactions": [
