@@ -15,6 +15,7 @@
     return {
       users: [],
       income: [],
+      planPeriod: window.HouseholdPlannerConstants.plan.DEFAULT_PERIOD,
       alloc: Object.assign({}, APP_CONSTANTS.DEFAULT_ALLOCATIONS),
       expenses: [],
       goals: [],
@@ -41,6 +42,9 @@
 
     for (const key of Object.keys(defaults)) {
       if (data[key] == null) data[key] = defaults[key];
+    }
+    if (!window.HouseholdPlannerConstants.plan.PERIODS.some(([period]) => period === data.planPeriod)) {
+      data.planPeriod = defaults.planPeriod;
     }
 
     const collections = [

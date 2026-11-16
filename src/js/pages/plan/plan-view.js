@@ -4,7 +4,7 @@
   /**
    * Budget and planning page.
    *
-   * Renders the monthly income tracker, section allocation meters, and editable
+   * Renders the income tracker, section allocation meters, and editable
    * lists for income, expenses, goals, and debt payments.
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
@@ -14,6 +14,20 @@
     const { MONEY_EPSILON } = window.HouseholdPlannerConstants.domain;
     const { state, D, sum, money, num, h, $, head, tile, bento, CATS, field, sRow, sCalc, sCol, userOpts, curOpts, rate, accountCurrency, nameOf, cls, esc, fmtDate, liv, itemList, expandable, totalsEl } = context;
     const { pctOf, byPriority } = service;
+    const period = () => PLAN_CONSTANTS.PERIODS.find(([value]) => value === state.planPeriod) ||
+      PLAN_CONSTANTS.PERIODS.find(([value]) => value === PLAN_CONSTANTS.DEFAULT_PERIOD);
+    const periodAmount = amount => num(amount) * period()[2];
+    const periodUnit = () => period()[3];
+    const periodField = (label, row, key) => {
+      const multiplier = period()[2];
+      const input = field(sCol(label, key, 'number', {
+        onChange: (_, next) => {
+          row[key] = next === '' ? '' : num(next) / multiplier;
+        }
+      }), row);
+      input.value = row[key] === '' ? '' : periodAmount(row[key]);
+      return input;
+    };
 
     /* ---------- Shared-state reads and derived values ---------- */
     const meterHtml = category => {
@@ -26,33 +40,48 @@
         ? Math.min(used / limit, 1) * 100
         : used > 0 ? 100 : 0;
 
-      return `<div class="m-left ${over ? 'bad' : ''}"><b>${money(Math.abs(left), 0)}</b><span>${over ? 'over the limit' : 'left to allocate'}</span></div>
-        <div class="m-bar" role="img" aria-label="${money(used, 0)} allocated of ${money(limit, 0)}"><i class="${over ? 'over' : ''}" style="width:${percentage}%"></i></div>
-        <div class="m-sub">Allocated ${money(used)} of ${money(limit)}</div>`;
+      return `<div class="m-left ${over ? 'bad' : ''}"><b>${money(periodAmount(Math.abs(left)), 0)}</b><span>${over ? 'over the limit' : 'left to allocate'}</span></div>
+        <div class="m-bar" role="img" aria-label="${money(periodAmount(used), 0)} allocated of ${money(periodAmount(limit), 0)}"><i class="${over ? 'over' : ''}" style="width:${percentage}%"></i></div>
+        <div class="m-sub">Allocated ${money(periodAmount(used))} of ${money(periodAmount(limit))} per ${periodUnit()}</div>`;
     };
     const planView = actions => {
       const el = h('div', {}, head(
         'Plan',
-        'Split your monthly income across essentials, savings goals, debts and everyday spending. Every section shows what you can still allocate.'
+        'Split your income across essentials, savings goals, debts and everyday spending. Choose how often you plan your budget.'
       ));
+      const periodSelect = h('select', { 'aria-label': 'Budget period' }, PLAN_CONSTANTS.PERIODS.map(
+        ([value, label]) => h('option', { value }, label)
+      ));
+      periodSelect.value = state.planPeriod;
+      periodSelect.addEventListener('change', () => actions.setPeriod(periodSelect.value));
       const tracker = h('div', { class: 'tracker', 'data-calc': '' });
+      const trackerRow = h('div', { class: 't-row' });
+      const periodControl = h(
+        'label',
+        { class: 't-period' },
+        h('span', {}, 'Period'),
+        periodSelect
+      );
+      const split = h('div', { class: 'split', role: 'img', 'aria-label': 'Income split by section' });
+      tracker.append(trackerRow, split);
       tracker._u = () => {
         const summary = D();
-        const income = summary.income;
-        const total = summary.totalBudgeted;
+        const income = periodAmount(summary.income);
+        const total = periodAmount(summary.totalBudgeted);
         const remaining = income - total;
         const scale = Math.max(income, total, 1);
         const isOverAllocated = remaining < -MONEY_EPSILON;
         const shares = sum(Object.values(state.alloc), value => value);
         const sharesTotalOneHundred = Math.abs(shares - 100) < 0.01;
         const segments = CATS.map(([key,, color]) =>
-          `<i style="width:${summary.budgeted[key] / scale * 100}%;background:var(--${color})"></i>`
+          `<i style="width:${periodAmount(summary.budgeted[key]) / scale * 100}%;background:var(--${color})"></i>`
         ).join('') + `<i style="width:${Math.max(remaining, 0) / scale * 100}%"></i>`;
 
-        tracker.innerHTML = `<div class="t-row"><div><small>Income</small><b>${money(income, 0)}</b></div><div><small>Allocated</small><b>${money(total, 0)}</b></div>
+        trackerRow.innerHTML = `<div><small>Income</small><b>${money(income, 0)}</b></div><div><small>Allocated</small><b>${money(total, 0)}</b></div>
           <div class="t-left ${isOverAllocated ? 'bad' : 'ok'}"><small>${isOverAllocated ? 'Over-allocated by' : 'Left to allocate'}</small><b>${money(Math.abs(remaining), 0)}</b></div>
-          ${sharesTotalOneHundred ? '' : `<div class="bad t-warn">Shares add up to ${shares.toFixed(1)}%. They need to total 100%.</div>`}</div>
-          <div class="split" role="img" aria-label="Income split by section">${segments}</div>`;
+          ${sharesTotalOneHundred ? '' : `<div class="bad t-warn">Shares add up to ${shares.toFixed(1)}%. They need to total 100%.</div>`}`;
+        trackerRow.append(periodControl);
+        split.innerHTML = segments;
       };
       tracker._u();
       el.append(tracker);
@@ -64,7 +93,7 @@
         6,
         {},
         h('h2', {}, 'Income'),
-        h('p', { class: 'sub' }, 'Per month. Pick a currency for each source and it is converted to NZD. Tap a source to edit it.'),
+        h('p', { class: 'sub' }, `Per ${periodUnit()}. Pick a currency for each source and it is converted to NZD. Tap a source to edit it.`),
         incomeBody(actions)
       ));
 
@@ -80,11 +109,11 @@
             ? Math.min(used / limit, 1) * 100
             : used > 0 ? 100 : 0;
 
-          return `<div class="lrow"><span class="dot" style="background:var(--${color})"></span><span>${name}</span><span class="lbar"><i style="width:${percentage}%;background:${isOver ? 'var(--red)' : 'var(--' + color + ')'}"></i></span><b class="${isOver ? 'bad' : ''}">${money(Math.abs(left), 0)}${isOver ? ' over' : ''}</b></div>`;
+          return `<div class="lrow"><span class="dot" style="background:var(--${color})"></span><span>${name}</span><span class="lbar"><i style="width:${percentage}%;background:${isOver ? 'var(--red)' : 'var(--' + color + ')'}"></i></span><b class="${isOver ? 'bad' : ''}">${money(periodAmount(Math.abs(left)), 0)}${isOver ? ' over' : ''}</b></div>`;
         }).join('') + '</div>';
         allocationSummary.innerHTML =
           '<h2>Left to allocate</h2>' +
-          '<p class="sub">What each section can still take this month.</p>' +
+          `<p class="sub">What each section can still take per ${periodUnit()}.</p>` +
           '<div class="rows">' + rows;
       };
       allocationSummary._u();
@@ -140,14 +169,14 @@
       grid.append(allocationTile(
         'savings',
         'Savings goals',
-        'Tap a goal to see everything and change its monthly amount. Money already set aside comes from the Accounts page.',
+        'Tap a goal to see everything and change its contribution amount. Money already set aside comes from the Accounts page.',
         goalsBody(actions),
         12
       ));
       grid.append(allocationTile(
         'debt',
         'Debt service',
-        'Tap a debt to see everything and set its monthly payment. Priority 1 is paid first.',
+        'Tap a debt to see everything and set its payment amount. Priority 1 is paid first.',
         debtsBody(actions),
         12
       ));
@@ -169,10 +198,10 @@
           liv(() => `<span class="pill neu">${pctOf(amountInNZD(), D().income).toFixed(0)}% of income</span>`, 'span')
         ),
         h('span', { class: 'tx-amt' },
-          liv(() => money(amountInNZD()), 'b'),
+          liv(() => money(periodAmount(amountInNZD())), 'b'),
           liv(() => isForeignCurrency()
-            ? `${esc(row.currency)} ${num(row.amount).toLocaleString('en-NZ', { maximumFractionDigits: 2 })}`
-            : 'a month', 'small')
+            ? `${esc(row.currency)} ${periodAmount(row.amount).toLocaleString('en-NZ', { maximumFractionDigits: 2 })}`
+            : 'per ' + periodUnit(), 'small')
         ),
         h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
       );
@@ -183,10 +212,10 @@
       if (labels.currency) {
         editable.push(sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), row)));
       }
-      editable.push(sRow(labels.amount, field(sCol(labels.amount, 'amount', 'number'), row)));
+      editable.push(sRow(labels.amount, periodField(labels.amount, row, 'amount')));
 
       const insights = [];
-      if (labels.currency) insights.push(sCalc('Amount in NZD', () => money(amountInNZD())));
+      if (labels.currency) insights.push(sCalc('Amount in NZD per ' + periodUnit(), () => money(periodAmount(amountInNZD()))));
       insights.push(sCalc('Share of income', () => pctOf(amountInNZD(), D().income).toFixed(1) + '%'));
       if (shareOfSection) {
         insights.push(sCalc(
@@ -215,14 +244,14 @@
       ph: 'e.g. Salary',
       del: 'Delete income',
       currency: true,
-      amount: 'Monthly amount'
+      amount: 'Amount per ' + periodUnit()
     }, 'income', false, actions);
     const expItem = (row, actions) => moneyItem(row, row.category, {
       untitled: 'Untitled expense',
       field: 'Expense',
       ph: 'e.g. Groceries',
       del: 'Delete expense',
-      amount: 'Monthly (NZD)',
+      amount: 'Amount per ' + periodUnit() + ' (NZD)',
       section: row.category === 'essential' ? 'essential expenses' : 'discretionary expenses'
     }, 'expenses', true, actions);
     function incomeBody(actions) {
@@ -232,7 +261,7 @@
         {},
         h('div', { class: 'li-wrap' }, list, empty),
         totalsEl(() => [
-          ['Total monthly income', money(D().income)],
+          ['Total per ' + periodUnit(), money(periodAmount(D().income))],
           ['Sources', String(state.income.length)]
         ]),
         h('button', { class: 'add', type: 'button', onclick: () => actions.addIncome(list) }, 'Add income')
@@ -250,7 +279,7 @@
         {},
         h('div', { class: 'li-wrap' }, list, empty),
         totalsEl(() => [
-          ['Budgeted', money(D().budgeted[category])],
+          ['Budgeted per ' + periodUnit(), money(periodAmount(D().budgeted[category]))],
           ['Share of income', pctOf(D().budgeted[category], D().income).toFixed(1) + '%'],
           ['Items', String(state.expenses.filter(expense => expense.category === category).length)]
         ]),
@@ -296,8 +325,8 @@
           }, 'span')
         ),
         h('span', { class: 'tx-amt' },
-          liv(() => money(num(goal.monthly)), 'b'),
-          h('small', {}, 'a month')
+          liv(() => money(periodAmount(goal.monthly)), 'b'),
+          h('small', {}, 'per ' + periodUnit())
         ),
         h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
       );
@@ -307,7 +336,7 @@
           sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), goal)),
           sRow('Target (NZD)', field(sCol('Target (NZD)', 'target', 'number'), goal)),
           sRow('Target date', field(sCol('Target date', 'date', 'date'), goal)),
-          sRow('Monthly (NZD)', field(sCol('Monthly (NZD)', 'monthly', 'number'), goal))
+          sRow('Amount per ' + periodUnit() + ' (NZD)', periodField('Amount per ' + periodUnit() + ' (NZD)', goal, 'monthly'))
         ),
         h('div', { class: 'fgroup' },
           sCalc('Saved so far', () => {
@@ -324,9 +353,9 @@
             const projected = goalSummary().projected;
             return projected ? fmtDate(projected) : '\u2014';
           }),
-          sCalc('Needed monthly', () => {
+          sCalc('Needed per ' + periodUnit(), () => {
             const required = goalSummary().required;
-            return required == null ? '\u2014' : money(required);
+            return required == null ? '\u2014' : money(periodAmount(required));
           }),
           sCalc('Status', () => {
             const status = goalSummary().status;
@@ -375,8 +404,8 @@
           }, 'span')
         ),
         h('span', { class: 'tx-amt' },
-          liv(() => money(num(debt.monthly)), 'b'),
-          h('small', {}, 'a month')
+          liv(() => money(periodAmount(debt.monthly)), 'b'),
+          h('small', {}, 'per ' + periodUnit())
         ),
         h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
       );
@@ -389,7 +418,7 @@
           sRow('Due date', field(sCol('Due date', 'due', 'date'), debt)),
           sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), debt)),
           sRow('Starting balance', field(sCol('Starting balance', 'balance', 'number'), debt)),
-          sRow('Monthly payment (NZD)', field(sCol('Monthly payment (NZD)', 'monthly', 'number'), debt))
+          sRow('Payment per ' + periodUnit() + ' (NZD)', periodField('Payment per ' + periodUnit() + ' (NZD)', debt, 'monthly'))
         ),
         h('div', { class: 'fgroup' },
           sCalc('Balance (NZD)', () => money(debtSummary().bal)),
@@ -401,9 +430,9 @@
               ? fmtDate(summary.projected)
               : '\u2014';
           }),
-          sCalc('Needed monthly', () => {
+          sCalc('Needed per ' + periodUnit(), () => {
             const required = debtSummary().required;
-            return required == null ? '\u2014' : money(required);
+            return required == null ? '\u2014' : money(periodAmount(required));
           }),
           sCalc('Status', () => {
             const status = debtSummary().status;
@@ -425,7 +454,7 @@
         totalsEl(() => [
           ['Target total', money(sum(state.goals, 'target'))],
           ['Saved so far', money(sum(Object.values(D().goals), 'saved'))],
-          ['Monthly total', money(sum(state.goals, 'monthly'))]
+          ['Total per ' + periodUnit(), money(periodAmount(sum(state.goals, 'monthly')))]
         ]),
         h('button', { class: 'add', type: 'button', onclick: () => actions.addGoal(list) }, 'Add goal')
       );
@@ -447,7 +476,7 @@
             ['Owed (NZD)', money(summary.debtTotal)],
             ['Covered', money(summary.debtFunded)],
             ['Still to find', money(summary.debtUnfunded)],
-            ['Monthly total', money(sum(state.debts, 'monthly'))]
+            ['Total per ' + periodUnit(), money(periodAmount(sum(state.debts, 'monthly')))]
           ];
         }),
         h('button', { class: 'add', type: 'button', onclick: () => actions.addDebt(list) }, 'Add debt')

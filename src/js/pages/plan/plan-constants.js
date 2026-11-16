@@ -3,6 +3,13 @@
 
   window.HouseholdPlannerConstants = window.HouseholdPlannerConstants || {};
   window.HouseholdPlannerConstants.plan = Object.freeze({
+    DEFAULT_PERIOD: 'monthly',
+    PERIODS: Object.freeze([
+      Object.freeze(['weekly', 'Weekly', 12 / 52, 'week']),
+      Object.freeze(['fortnightly', 'Fortnightly', 12 / 26, 'fortnight']),
+      Object.freeze(['monthly', 'Monthly', 1, 'month']),
+      Object.freeze(['annually', 'Annually', 12, 'year'])
+    ]),
     KIND_COLOR: Object.freeze({
       income: '--c2',
       essential: '--c1',

@@ -19,6 +19,9 @@
     const updateAllocation = (category, input) => {
       state.alloc[category] = input.value === '' ? 0 : parseFloat(input.value);
     };
+    const setPeriod = period => {
+      state.planPeriod = period;
+    };
     const createIncome = () => {
       const income = {
         id: uid(),
@@ -79,6 +82,7 @@
       pctOf,
       byPriority,
       updateAllocation,
+      setPeriod,
       createIncome,
       createExpense,
       deleteMoneyItem,
