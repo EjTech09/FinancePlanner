@@ -1,6 +1,12 @@
 (() => {
 'use strict';
 
+/**
+ * Core household-planner calculations.
+ *
+ * This model centralises conversions, budget totals, account summaries, debt
+ * status, and goal progress so the view layers can stay focused on rendering.
+ */
 const toNumber = value => {
   if (value === '' || value == null || !isFinite(+value)) return 0;
   return +value;

@@ -1,0 +1,555 @@
+(() => {
+  'use strict';
+
+  /**
+   * Budget and planning page.
+   *
+   * Renders the monthly income tracker, section allocation meters, and editable
+   * lists for income, expenses, goals, and debt payments.
+   */
+  window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
+  window.HouseholdPlannerPages.plan = context => {
+    const { state, D, sum, money, num, h, head, tile, bento, CATS, commit, markDirty, uid, field, detach, sRow, sCalc, sCol, userOpts, curOpts, rate, accountCurrency, nameOf, cls, esc, fmtDate, calcEl, liv, itemList, expandable, totalsEl } = context;
+    const meterHtml = category => {
+      const summary = D();
+      const limit = summary.limit[category];
+      const used = summary.budgeted[category];
+      const left = limit - used;
+      const over = left < -0.005;
+      const percentage = limit > 0
+        ? Math.min(used / limit, 1) * 100
+        : used > 0 ? 100 : 0;
+
+      return `<div class="m-left ${over ? 'bad' : ''}"><b>${money(Math.abs(left), 0)}</b><span>${over ? 'over the limit' : 'left to allocate'}</span></div>
+        <div class="m-bar" role="img" aria-label="${money(used, 0)} allocated of ${money(limit, 0)}"><i class="${over ? 'over' : ''}" style="width:${percentage}%"></i></div>
+        <div class="m-sub">Allocated ${money(used)} of ${money(limit)}</div>`;
+    };
+    const planView = () => {
+      const el = h('div', {}, head(
+        'Plan',
+        'Split your monthly income across essentials, savings goals, debts and everyday spending. Every section shows what you can still allocate.'
+      ));
+      const tracker = h('div', { class: 'tracker', 'data-calc': '' });
+      tracker._u = () => {
+        const summary = D();
+        const income = summary.income;
+        const total = summary.totalBudgeted;
+        const remaining = income - total;
+        const scale = Math.max(income, total, 1);
+        const isOverAllocated = remaining < -0.005;
+        const shares = sum(Object.values(state.alloc), value => value);
+        const sharesTotalOneHundred = Math.abs(shares - 100) < 0.01;
+        const segments = CATS.map(([key,, color]) =>
+          `<i style="width:${summary.budgeted[key] / scale * 100}%;background:var(--${color})"></i>`
+        ).join('') + `<i style="width:${Math.max(remaining, 0) / scale * 100}%"></i>`;
+
+        tracker.innerHTML = `<div class="t-row"><div><small>Income</small><b>${money(income, 0)}</b></div><div><small>Allocated</small><b>${money(total, 0)}</b></div>
+          <div class="t-left ${isOverAllocated ? 'bad' : 'ok'}"><small>${isOverAllocated ? 'Over-allocated by' : 'Left to allocate'}</small><b>${money(Math.abs(remaining), 0)}</b></div>
+          ${sharesTotalOneHundred ? '' : `<div class="bad t-warn">Shares add up to ${shares.toFixed(1)}%. They need to total 100%.</div>`}</div>
+          <div class="split" role="img" aria-label="Income split by section">${segments}</div>`;
+      };
+      tracker._u();
+      el.append(tracker);
+
+      const grid = h('div', { class: 'bento' });
+      el.append(grid);
+
+      grid.append(tile(
+        6,
+        {},
+        h('h2', {}, 'Income'),
+        h('p', { class: 'sub' }, 'Per month. Pick a currency for each source and it is converted to NZD. Tap a source to edit it.'),
+        incomeBody()
+      ));
+
+      const allocationSummary = h('section', { class: 'tile s-6', 'data-calc': '' });
+      allocationSummary._u = () => {
+        const summary = D();
+        const rows = CATS.map(([category, name, color]) => {
+          const left = summary.limit[category] - summary.budgeted[category];
+          const isOver = left < -0.005;
+          const limit = summary.limit[category];
+          const used = summary.budgeted[category];
+          const percentage = limit > 0
+            ? Math.min(used / limit, 1) * 100
+            : used > 0 ? 100 : 0;
+
+          return `<div class="lrow"><span class="dot" style="background:var(--${color})"></span><span>${name}</span><span class="lbar"><i style="width:${percentage}%;background:${isOver ? 'var(--red)' : 'var(--' + color + ')'}"></i></span><b class="${isOver ? 'bad' : ''}">${money(Math.abs(left), 0)}${isOver ? ' over' : ''}</b></div>`;
+        }).join('') + '</div>';
+        allocationSummary.innerHTML =
+          '<h2>Left to allocate</h2>' +
+          '<p class="sub">What each section can still take this month.</p>' +
+          '<div class="rows">' + rows;
+      };
+      allocationSummary._u();
+      grid.append(allocationSummary);
+
+      const allocationTile = (category, title, subtitle, body, span) => {
+        const shareInput = h('input', {
+          type: 'number',
+          step: 'any',
+          value: state.alloc[category],
+          'aria-label': title + ' share of income'
+        });
+        shareInput.addEventListener('input', () => {
+          state.alloc[category] = shareInput.value === '' ? 0 : parseFloat(shareInput.value);
+          commit();
+        });
+
+        const meter = h('div', { class: 'meter', 'data-calc': '' });
+        meter._u = () => {
+          meter.innerHTML = meterHtml(category);
+        };
+        meter._u();
+
+        const color = CATS.find(([key]) => key === category)[2];
+        return tile(span, { style: '--sc:var(--' + color + ')' },
+          h('div', { class: 'sec-head' }, h('h2', {}, title), h('label', { class: 'share' }, 'Share of income', shareInput, '%')),
+          subtitle ? h('p', { class: 'sub' }, subtitle) : null,
+          meter,
+          body
+        );
+      };
+      const expenses = (k, label) => expenseBody(k, label);
+      const G = goal => D().goals[goal.id];
+      const Dd = debt => D().debts[debt.id];
+      const prog = (saved, total) => {
+        const percentage = total > 0 ? Math.min(saved / total, 1) * 100 : 0;
+        return {
+          html: `<span class="mini"><i style="width:${percentage}%"></i></span>${money(saved, 0)} (${percentage.toFixed(0)}%)`
+        };
+      };
+
+      grid.append(allocationTile(
+        'essential',
+        'Essential expenses',
+        'Rent, food, transport and other costs you cannot skip. Tap one to edit it.',
+        expenses('essential', 'Add essential expense'),
+        6
+      ));
+      grid.append(allocationTile(
+        'discretionary',
+        'Discretionary expenses',
+        'Eating out, treats and anything you can trim. Tap one to edit it.',
+        expenses('discretionary', 'Add discretionary expense'),
+        6
+      ));
+      grid.append(allocationTile(
+        'savings',
+        'Savings goals',
+        'Tap a goal to see everything and change its monthly amount. Money already set aside comes from the Accounts page.',
+        goalsBody(),
+        12
+      ));
+      grid.append(allocationTile(
+        'debt',
+        'Debt service',
+        'Tap a debt to see everything and set its monthly payment. Priority 1 is paid first.',
+        debtsBody(),
+        12
+      ));
+      return el;
+    };
+
+    const KIND_COLOR = { income: '--c2', essential: '--c1', discretionary: '--c4' };
+    const KIND_ICON = { income: '<path d="M12 5v14M12 19l-5-5M12 19l5-5"/>', essential: '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>', discretionary: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/>' };
+    const kindIcon = kind => `<span class="tx-ic" style="--tc:var(${KIND_COLOR[kind]})"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${KIND_ICON[kind]}</svg></span>`;
+    const pctOf = (amount, total) => total > 0 ? num(amount) / total * 100 : 0;
+    function moneyItem(row, kind, labels, collection, shareOfSection) {
+      const nameKey = kind === 'income' ? 'source' : 'name';
+      const itemTitle = kind === 'income' ? 'income' : 'expense';
+      const amountInNZD = () => num(row.amount) * rate(row.currency || 'NZD');
+      const isForeignCurrency = () => row.currency && row.currency !== 'NZD';
+      const item = h('div', { class: 'acc-item', 'data-id': row.id });
+      const header = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
+        liv(() => kindIcon(kind), 'span', 'li-ic'),
+        h('span', { class: 'tx-main' },
+          liv(() => esc(row[nameKey] || labels.untitled), 'b'),
+          liv(() => esc(nameOf('users', row.user) || 'No user'), 'small'),
+          liv(() => `<span class="pill neu">${pctOf(amountInNZD(), D().income).toFixed(0)}% of income</span>`, 'span')
+        ),
+        h('span', { class: 'tx-amt' },
+          liv(() => money(amountInNZD()), 'b'),
+          liv(() => isForeignCurrency()
+            ? `${esc(row.currency)} ${num(row.amount).toLocaleString('en-NZ', { maximumFractionDigits: 2 })}`
+            : 'a month', 'small')
+        ),
+        h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
+      );
+      const editable = [
+        sRow(labels.field, field(sCol(labels.field, nameKey, 'text', { ph: labels.ph }), row)),
+        sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), row))
+      ];
+      if (labels.currency) {
+        editable.push(sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), row)));
+      }
+      editable.push(sRow(labels.amount, field(sCol(labels.amount, 'amount', 'number'), row)));
+
+      const insights = [];
+      if (labels.currency) insights.push(sCalc('Amount in NZD', () => money(amountInNZD())));
+      insights.push(sCalc('Share of income', () => pctOf(amountInNZD(), D().income).toFixed(1) + '%'));
+      if (shareOfSection) {
+        insights.push(sCalc(
+          'Share of ' + labels.section,
+          () => pctOf(amountInNZD(), D().budgeted[kind]).toFixed(1) + '%'
+        ));
+      }
+
+      const detail = h('div', { class: 'li-detail one', hidden: true },
+        h('div', { class: 'fgroup' }, editable),
+        labels.currency
+          ? liv(() => isForeignCurrency()
+            ? 'Converted to NZD using the exchange rates on the Accounts page.'
+            : '', 'p', 'hint')
+          : null,
+        h('div', { class: 'fgroup' }, insights),
+        h('button', { class: 'btn danger full', type: 'button', onclick: () => {
+          if (!confirm('Delete this ' + itemTitle + '? This cannot be undone.')) return;
+          state[collection] = state[collection].filter(item => item !== row);
+          item.remove();
+          commit();
+        } }, labels.del));
+      expandable(item, header, detail);
+      return item;
+    }
+    const incItem = row => moneyItem(row, 'income', {
+      untitled: 'Untitled income',
+      field: 'Source',
+      ph: 'e.g. Salary',
+      del: 'Delete income',
+      currency: true,
+      amount: 'Monthly amount'
+    }, 'income', false);
+    const expItem = row => moneyItem(row, row.category, {
+      untitled: 'Untitled expense',
+      field: 'Expense',
+      ph: 'e.g. Groceries',
+      del: 'Delete expense',
+      amount: 'Monthly (NZD)',
+      section: row.category === 'essential' ? 'essential expenses' : 'discretionary expenses'
+    }, 'expenses', true);
+    function incomeBody() {
+      const { list, empty } = itemList('income', () => true, incItem, 'No income yet. Add the first source.');
+      const add = () => {
+        const income = {
+          id: uid(),
+          source: '',
+          user: '',
+          amount: '',
+          currency: 'NZD'
+        };
+        state.income.push(income);
+        markDirty();
+
+        const item = incItem(income);
+        list.append(item);
+        item._open(true);
+        commit();
+
+        const firstField = $('input', item);
+        if (firstField) firstField.focus();
+      };
+      return h(
+        'div',
+        {},
+        h('div', { class: 'li-wrap' }, list, empty),
+        totalsEl(() => [
+          ['Total monthly income', money(D().income)],
+          ['Sources', String(state.income.length)]
+        ]),
+        h('button', { class: 'add', type: 'button', onclick: add }, 'Add income')
+      );
+    }
+    function expenseBody(category, addLabel) {
+      const { list, empty } = itemList(
+        'expenses',
+        expense => expense.category === category,
+        expItem,
+        'Nothing here yet. Add the first one.'
+      );
+      const add = () => {
+        const expense = { id: uid(), name: '', category, user: '', amount: '' };
+        state.expenses.push(expense);
+        markDirty();
+
+        const item = expItem(expense);
+        list.append(item);
+        item._open(true);
+        commit();
+
+        const firstField = $('input', item);
+        if (firstField) firstField.focus();
+      };
+      return h(
+        'div',
+        {},
+        h('div', { class: 'li-wrap' }, list, empty),
+        totalsEl(() => [
+          ['Budgeted', money(D().budgeted[category])],
+          ['Share of income', pctOf(D().budgeted[category], D().income).toFixed(1) + '%'],
+          ['Items', String(state.expenses.filter(expense => expense.category === category).length)]
+        ]),
+        h('button', { class: 'add', type: 'button', onclick: add }, addLabel)
+      );
+    }
+
+    function goalItem(goal) {
+      const goalSummary = () => D().goals[goal.id] || {
+        saved: 0,
+        hasTarget: false,
+        status: '',
+        remaining: 0,
+        projected: null,
+        required: null
+      };
+      const percentage = () => {
+        const summary = goalSummary();
+        return summary.hasTarget && num(goal.target) > 0
+          ? Math.min(summary.saved / num(goal.target), 1) * 100
+          : 0;
+      };
+      const item = h('div', { class: 'acc-item', 'data-id': goal.id });
+      const header = h(
+        'button',
+        { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
+        liv(() => ring(percentage()), 'span', 'li-ringw'),
+        h('span', { class: 'tx-main' },
+          liv(() => esc(goal.name || 'Untitled goal'), 'b'),
+          liv(() => {
+            const summary = goalSummary();
+            const savedText = summary.hasTarget
+              ? 'Saved ' + money(summary.saved, 0) + ' of ' + money(num(goal.target), 0)
+              : 'No target set';
+            const reachedText = summary.projected
+              ? ', reached ' + fmtDate(summary.projected)
+              : '';
+            return savedText + reachedText;
+          }, 'small'),
+          liv(() => {
+            const status = goalSummary().status;
+            return `<span class="pill ${cls(status)}" title="${esc(status)}">${esc(status)}</span>`;
+          }, 'span')
+        ),
+        h('span', { class: 'tx-amt' },
+          liv(() => money(num(goal.monthly)), 'b'),
+          h('small', {}, 'a month')
+        ),
+        h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
+      );
+      const detail = h('div', { class: 'li-detail', hidden: true },
+        h('div', { class: 'fgroup' },
+          sRow('Goal', field(sCol('Goal', 'name', 'text', { ph: 'e.g. House deposit' }), goal)),
+          sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), goal)),
+          sRow('Target (NZD)', field(sCol('Target (NZD)', 'target', 'number'), goal)),
+          sRow('Target date', field(sCol('Target date', 'date', 'date'), goal)),
+          sRow('Monthly (NZD)', field(sCol('Monthly (NZD)', 'monthly', 'number'), goal))
+        ),
+        h('div', { class: 'fgroup' },
+          sCalc('Saved so far', () => {
+            const summary = goalSummary();
+            return summary.hasTarget
+              ? progH(summary.saved, num(goal.target))
+              : money(summary.saved);
+          }),
+          sCalc('Still to save', () => {
+            const summary = goalSummary();
+            return summary.hasTarget ? money(summary.remaining) : '\u2014';
+          }),
+          sCalc('Reached by', () => {
+            const projected = goalSummary().projected;
+            return projected ? fmtDate(projected) : '\u2014';
+          }),
+          sCalc('Needed monthly', () => {
+            const required = goalSummary().required;
+            return required == null ? '\u2014' : money(required);
+          }),
+          sCalc('Status', () => {
+            const status = goalSummary().status;
+            return { t: status, cls: cls(status) };
+          })
+        ),
+        h('button', { class: 'btn danger full', type: 'button', onclick: () => {
+          if (!confirm('Delete this goal? Money set aside for it will be kept as "something else".')) return;
+          state.goals = state.goals.filter(row => row !== goal);
+          detach('goals', goal.id);
+          item.remove();
+          commit();
+        } }, 'Delete goal'));
+      expandable(item, header, detail);
+      return item;
+    }
+    function debtItem(debt) {
+      const debtSummary = () => D().debts[debt.id] || {
+        bal: 0,
+        funded: 0,
+        unfunded: 0,
+        status: '',
+        projected: null,
+        required: null
+      };
+      const percentage = () => {
+        const summary = debtSummary();
+        return summary.bal > 0 ? Math.min(summary.funded / summary.bal, 1) * 100 : 0;
+      };
+      const item = h('div', { class: 'acc-item', 'data-id': debt.id });
+      const header = h(
+        'button',
+        { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
+        liv(() => ring(percentage()), 'span', 'li-ringw'),
+        h('span', { class: 'tx-main' },
+          liv(() => esc(debt.name || 'Untitled debt'), 'b'),
+          liv(() => {
+            const summary = debtSummary();
+            const coverageText = summary.unfunded < 0.005
+              ? 'fully covered' + (summary.funded - summary.bal > 0.5
+                ? ', ' + money(summary.funded - summary.bal, 0) + ' extra set aside'
+                : '')
+              : money(summary.unfunded, 0) + ' still to find';
+            const dueText = debt.due ? ', due ' + dueDate(debt.due) : '';
+            return `${money(summary.bal, 0)} owed, ${coverageText}${dueText}`;
+          }, 'small'),
+          liv(() => {
+            const status = debtSummary().status;
+            return `<span class="pill ${cls(status)}" title="${esc(status)}">${esc(status)}</span>`;
+          }, 'span')
+        ),
+        h('span', { class: 'tx-amt' },
+          liv(() => money(num(debt.monthly)), 'b'),
+          h('small', {}, 'a month')
+        ),
+        h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
+      );
+      const detail = h('div', { class: 'li-detail', hidden: true },
+        h('div', { class: 'fgroup' },
+          sRow('Debt', field(sCol('Debt', 'name', 'text', { ph: 'e.g. Car loan' }), debt)),
+          sRow('Priority', field(sCol('Priority', 'priority', 'number'), debt)),
+          sRow('Borrower', field(sCol('Borrower', 'borrower', 'select', { opts: userOpts }), debt)),
+          sRow('Owed to', field(sCol('Owed to', 'creditor', 'text'), debt)),
+          sRow('Due date', field(sCol('Due date', 'due', 'date'), debt)),
+          sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), debt)),
+          sRow('Balance', field(sCol('Balance', 'balance', 'number'), debt)),
+          sRow('Monthly payment (NZD)', field(sCol('Monthly payment (NZD)', 'monthly', 'number'), debt))
+        ),
+        h('div', { class: 'fgroup' },
+          sCalc('Balance (NZD)', () => money(debtSummary().bal)),
+          sCalc('Covered so far', () => progH(debtSummary().funded, debtSummary().bal)),
+          sCalc('Still to find', () => money(debtSummary().unfunded)),
+          sCalc('Repaid by', () => {
+            const summary = debtSummary();
+            return summary.projected && summary.bal > 0
+              ? fmtDate(summary.projected)
+              : '\u2014';
+          }),
+          sCalc('Needed monthly', () => {
+            const required = debtSummary().required;
+            return required == null ? '\u2014' : money(required);
+          }),
+          sCalc('Status', () => {
+            const status = debtSummary().status;
+            return { t: status, cls: cls(status) };
+          })
+        ),
+        h('button', { class: 'btn danger full', type: 'button', onclick: () => {
+          if (!confirm('Delete this debt? Money set aside for it will be kept as "something else".')) return;
+          state.debts = state.debts.filter(row => row !== debt);
+          detach('debts', debt.id);
+          item.remove();
+          commit();
+        } }, 'Delete debt'));
+      expandable(item, header, detail);
+      return item;
+    }
+    const byPriority = (first, second) => {
+      const firstPriority = first.priority === '' || first.priority == null
+        ? 999
+        : num(first.priority);
+      const secondPriority = second.priority === '' || second.priority == null
+        ? 999
+        : num(second.priority);
+      return firstPriority - secondPriority;
+    };
+    function goalsBody() {
+      const { list, empty } = itemList('goals', () => true, goalItem, 'No goals yet. Add the first one.');
+      const add = () => {
+        const goal = { id: uid(), name: '', user: '', target: '', date: '', monthly: '' };
+        state.goals.push(goal);
+        markDirty();
+
+        const item = goalItem(goal);
+        list.append(item);
+        item._open(true);
+        commit();
+
+        const firstField = $('input', item);
+        if (firstField) firstField.focus();
+      };
+      return h(
+        'div',
+        {},
+        h('div', { class: 'li-wrap' }, list, empty),
+        totalsEl(() => [
+          ['Target total', money(sum(state.goals, 'target'))],
+          ['Saved so far', money(sum(Object.values(D().goals), 'saved'))],
+          ['Monthly total', money(sum(state.goals, 'monthly'))]
+        ]),
+        h('button', { class: 'add', type: 'button', onclick: add }, 'Add goal')
+      );
+    }
+    function debtsBody() {
+      const list = h('div', { class: 'tx-card acc-list' });
+      state.debts.slice().sort(byPriority).forEach(debt => list.append(debtItem(debt)));
+      const empty = liv(
+        () => list.children.length ? '' : '<p class="empty">No debts recorded. Add the first one.</p>',
+        'div'
+      );
+      const add = () => {
+        const debt = {
+          id: uid(),
+          name: '',
+          priority: '',
+          borrower: '',
+          creditor: '',
+          due: '',
+          currency: 'NZD',
+          balance: '',
+          monthly: ''
+        };
+        state.debts.push(debt);
+        markDirty();
+
+        const item = debtItem(debt);
+        list.append(item);
+        item._open(true);
+        commit();
+
+        const firstField = $('input', item);
+        if (firstField) firstField.focus();
+      };
+      return h(
+        'div',
+        {},
+        h('div', { class: 'li-wrap' }, list, empty),
+        totalsEl(() => {
+          const summary = D();
+          return [
+            ['Owed (NZD)', money(summary.debtTotal)],
+            ['Covered', money(summary.debtFunded)],
+            ['Still to find', money(summary.debtUnfunded)],
+            ['Monthly total', money(sum(state.debts, 'monthly'))]
+          ];
+        }),
+        h('button', { class: 'add', type: 'button', onclick: add }, 'Add debt')
+      );
+    }
+
+    const ring = p => `<span class="li-ring"><svg viewBox="0 0 44 44" width="44" height="44" aria-hidden="true"><circle class="rg-bg" cx="22" cy="22" r="18"/><circle class="rg-fg" cx="22" cy="22" r="18" stroke-dasharray="${(p / 100 * 113.1).toFixed(1)} 113.1" transform="rotate(-90 22 22)"${p < 0.5 ? ' style="display:none"' : ''}/></svg><b>${Math.round(p)}%</b></span>`;
+    const progH = (saved, total) => {
+      const percentage = total > 0 ? Math.min(saved / total, 1) * 100 : 0;
+      return {
+        html: `<span class="mini"><i style="width:${percentage}%"></i></span>${money(saved, 0)} (${percentage.toFixed(0)}%)`
+      };
+    };
+    const dueDate = s => fmtDate(new Date(s + 'T00:00:00'));
+    return planView;
+  };
+})();
