@@ -3,19 +3,22 @@
 
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.accountsService = context => {
+    const DOMAIN = window.HouseholdPlannerConstants.domain;
     const {
       state, uid, detach, rate, accountCurrency, num, exchangeRates
     } = context;
 
     const accFilter = () => {
-      const filter = state.ui.accUser || 'all';
+      const filter = state.ui.accUser || DOMAIN.FILTER_ALL;
       const isKnownUser = state.users.some(user => user.id === filter);
-      return filter === 'all' || filter === 'none' || isKnownUser ? filter : 'all';
+      return filter === DOMAIN.FILTER_ALL || filter === DOMAIN.FILTER_NONE || isKnownUser
+        ? filter
+        : DOMAIN.FILTER_ALL;
     };
     const accMatch = account => {
       const filter = accFilter();
-      if (filter === 'all') return true;
-      if (filter === 'none') return !account.user;
+      if (filter === DOMAIN.FILTER_ALL) return true;
+      if (filter === DOMAIN.FILTER_NONE) return !account.user;
       return account.user === filter;
     };
     const comMatch = commitment => {
@@ -36,8 +39,8 @@
       const account = {
         id: uid(),
         name: '',
-        user: filter !== 'all' && filter !== 'none' ? filter : '',
-        currency: 'NZD',
+        user: filter !== DOMAIN.FILTER_ALL && filter !== DOMAIN.FILTER_NONE ? filter : '',
+        currency: DOMAIN.DEFAULT_CURRENCY,
         balance: '',
         liabilities: ''
       };
@@ -49,8 +52,8 @@
       const filter = accFilter();
       const commitment = {
         id: uid(),
-        account: filter !== 'all' && accounts.length ? accounts[0].id : '',
-        target: 'other',
+        account: filter !== DOMAIN.FILTER_ALL && accounts.length ? accounts[0].id : '',
+        target: DOMAIN.COMMITMENT_OTHER_TARGET,
         label: '',
         amount: ''
       };

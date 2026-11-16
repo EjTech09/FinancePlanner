@@ -9,6 +9,7 @@
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.dataView = (context, service) => {
+    const DATA_CONSTANTS = window.HouseholdPlannerConstants.data;
     const { h, head, tableView, tile, themeSeg, bento, startImport } = context;
 
     const dataView = actions => {
@@ -21,17 +22,17 @@
         coll: 'users',
         addLabel: 'Add person',
         span: 7,
-        blank: () => ({ name: '', type: 'Individual' }),
+        blank: () => ({ name: '', type: DATA_CONSTANTS.DEFAULT_PERSON_TYPE }),
         cols: [
           { label: 'Name', key: 'name', type: 'text' },
           {
             label: 'Type',
             key: 'type',
             type: 'select',
-            opts: () => [
-              { v: 'Individual', t: 'Individual' },
-              { v: 'Joint', t: 'Joint' }
-            ]
+            opts: () => DATA_CONSTANTS.PERSON_TYPES.map(([value, label]) => ({
+              v: value,
+              t: label
+            }))
           }
         ]
       });

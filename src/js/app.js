@@ -17,6 +17,8 @@ const {
 
 (() => {
 'use strict';
+const APP_CONSTANTS = window.HouseholdPlannerConstants.app;
+const DOMAIN_CONSTANTS = window.HouseholdPlannerConstants.domain;
 
 /**
  * App bootstrap and state coordinator.
@@ -26,10 +28,8 @@ const {
  * logic lives in the HouseholdPlannerPages registry, while the rest of the app
  * provides reusable UI/table/data helpers.
  */
-const KEY = 'household-planner-v1';
-const THEME_KEY = 'household-planner-theme';
 const persistence = window.HouseholdPlannerPersistence.create();
-let theme = persistence.loadTheme(THEME_KEY);
+let theme = persistence.loadTheme(APP_CONSTANTS.THEME_STORAGE_KEY);
 const {
   calcEl,
   icon,
@@ -48,20 +48,20 @@ function applyTheme() {
 
 function setTheme(nextTheme) {
   theme = nextTheme;
-  persistence.saveTheme(THEME_KEY, nextTheme);
+  persistence.saveTheme(APP_CONSTANTS.THEME_STORAGE_KEY, nextTheme);
   applyTheme();
   render();
 }
 
 applyTheme();
 
-const loadedState = persistence.load(KEY, hasData);
+const loadedState = persistence.load(APP_CONSTANTS.STORAGE_KEY, hasData);
 let state = loadedState.state;
 let legacy = loadedState.legacy;
 function save() {
   if (!persistence.available) return;
   state.ui.build = 3;
-  persistence.save(KEY, state, renderNav);
+  persistence.save(APP_CONSTANTS.STORAGE_KEY, state, renderNav);
 }
 
 /* ---------- calculations ---------- */
@@ -69,7 +69,8 @@ const today = new Date();
 const asOf = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 const rate = currency => currencyRate(currency, state.fx);
 const accountCurrency = accountId =>
-  (state.accounts.find(account => account.id === accountId) || {}).currency || 'NZD';
+  (state.accounts.find(account => account.id === accountId) || {}).currency ||
+  DOMAIN_CONSTANTS.DEFAULT_CURRENCY;
 const exchangeRates = window.HouseholdPlannerExchangeRates.create({
   getState: () => state,
   commit,
@@ -83,12 +84,7 @@ function D() {
   dirty = false;
   return cache;
 }
-const CATS = [
-  ['essential', 'Essential expenses', 'c1'],
-  ['savings', 'Savings', 'c2'],
-  ['debt', 'Debt service', 'c3'],
-  ['discretionary', 'Discretionary expenses', 'c4']
-];
+const CATS = APP_CONSTANTS.BUDGET_CATEGORIES;
 const cls = status =>
   /^(Behind|Over|Liabilities)/.test(status) ? 'bad' :
     /^(No |Set a)/.test(status) ? 'warn' :
@@ -104,7 +100,7 @@ const accOpts = () => [
   ...state.accounts.map(account => ({ v: account.id, t: account.name || '(unnamed)' }))
 ];
 const targetOpts = () => [
-  { v: 'other', t: 'Something else' },
+  { v: DOMAIN_CONSTANTS.COMMITMENT_OTHER_TARGET, t: 'Something else' },
   {
     g: 'Debts',
     items: state.debts.map(debt => ({ v: 'debt:' + debt.id, t: debt.name || '(unnamed)' }))
@@ -114,7 +110,7 @@ const targetOpts = () => [
     items: state.goals.map(goal => ({ v: 'goal:' + goal.id, t: goal.name || '(unnamed)' }))
   }
 ];
-const curOpts = () => ['NZD', 'PHP', 'USD'].map(currency => ({ v: currency, t: currency }));
+const curOpts = () => DOMAIN_CONSTANTS.CURRENCIES.map(currency => ({ v: currency, t: currency }));
 
 /* ---------- table plumbing ---------- */
 function commit() {
@@ -166,12 +162,16 @@ function detach(collection, id) {
   }
   if (collection === 'debts') {
     state.commitments.forEach(commitment => {
-      if (commitment.target === 'debt:' + id) commitment.target = 'other';
+      if (commitment.target === 'debt:' + id) {
+        commitment.target = DOMAIN_CONSTANTS.COMMITMENT_OTHER_TARGET;
+      }
     });
   }
   if (collection === 'goals') {
     state.commitments.forEach(commitment => {
-      if (commitment.target === 'goal:' + id) commitment.target = 'other';
+      if (commitment.target === 'goal:' + id) {
+        commitment.target = DOMAIN_CONSTANTS.COMMITMENT_OTHER_TARGET;
+      }
     });
   }
   if (collection === 'users') {
@@ -241,6 +241,16 @@ const accountPage = window.HouseholdPlannerPages.accounts(Object.assign({}, page
 const dashboardPage = window.HouseholdPlannerPages.dashboard(pageContext);
 const dataPage = window.HouseholdPlannerPages.data(pageContext);
 
+const pageRenderers = {
+  [APP_CONSTANTS.PAGE_ID.DASHBOARD]: dashboardPage,
+  [APP_CONSTANTS.PAGE_ID.PLAN]: planPage,
+  [APP_CONSTANTS.PAGE_ID.ACCOUNTS]: accountPage.render,
+  [APP_CONSTANTS.PAGE_ID.TRANSACTIONS]: transactionPage.render,
+  [APP_CONSTANTS.PAGE_ID.DATA]: dataPage
+};
+const TABS = APP_CONSTANTS.NAV_TABS.map(([id, label, page, icon, shortLabel]) =>
+  [id, label, pageRenderers[page], icon, shortLabel]
+);
 
 /* ---------- shared list components ---------- */
 function liv(render, tag, className) {
@@ -305,7 +315,7 @@ importInput.addEventListener('change', () => {
 
       replaceState(persistence.normalize(importedData));
       legacy = false;
-      state.ui.tab = 'dashboard';
+      state.ui.tab = APP_CONSTANTS.PAGE_ID.DASHBOARD;
       dirty = true;
       save();
       render();
@@ -341,16 +351,7 @@ function hasData(data = state) {
 
 /* ---------- shell ---------- */
 
-//Purpose: Define the available tabs in the application, including their IDs, labels, render functions, icons, and short labels for navigation.
-//Data structure: Each tab is represented as an array containing the tab ID, label, render function, icon name, and short label. The TABS array is used to generate the navigation buttons and determine which page to render based on the selected tab.
-const TABS = [
-  ['dashboard', 'Dashboard', dashboardPage, 'dashboard', 'Dashboard'],
-  ['plan', 'Plan', planPage, 'plan', 'Plan'],
-  ['accounts', 'Accounts', accountPage.render, 'accounts', 'Accounts'],
-  ['transactions', 'Transactions', transactionPage.render, 'transactions', 'Activity'],
-  ['data', 'People and data', dataPage, 'people', 'People']
-];
-
+// Navigation metadata is centralized; this binds each tab to its page renderer.
 //Purpose: Render the navigation buttons for each tab, highlighting the currently selected tab and allowing users to switch between tabs while saving the state and re-rendering the content.
 function renderNav() {
   const nav = $('#nav');

@@ -13,13 +13,15 @@
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const money = (amount, digits = 2) => new Intl.NumberFormat('en-NZ', {
     style: 'currency',
-    currency: 'NZD',
+    currency: window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY,
     minimumFractionDigits: digits,
     maximumFractionDigits: digits
   }).format(amount);
   const moneyCur = (amount, currency) => new Intl.NumberFormat('en-NZ', {
     style: 'currency',
-    currency: ['NZD', 'PHP', 'USD'].includes(currency) ? currency : 'NZD',
+    currency: window.HouseholdPlannerConstants.domain.CURRENCIES.includes(currency)
+      ? currency
+      : window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY,
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount);

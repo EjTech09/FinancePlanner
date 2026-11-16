@@ -8,20 +8,28 @@
    * before returning it to the rest of the application.
    */
   const { num, currencyRate } = window.HouseholdPlannerModel;
+  const APP_CONSTANTS = window.HouseholdPlannerConstants.app;
+  const DOMAIN_CONSTANTS = window.HouseholdPlannerConstants.domain;
 
   function blank() {
     return {
       users: [],
       income: [],
-      alloc: { essential: 50, savings: 20, debt: 10, discretionary: 20 },
+      alloc: Object.assign({}, APP_CONSTANTS.DEFAULT_ALLOCATIONS),
       expenses: [],
       goals: [],
       debts: [],
       accounts: [],
-      fx: { php: 36, usd: 1.8, phpUpdatedAt: null, usdUpdatedAt: null },
+      fx: Object.assign({}, APP_CONSTANTS.DEFAULT_FX_RATES, {
+        phpUpdatedAt: null,
+        usdUpdatedAt: null
+      }),
       commitments: [],
       transactions: [],
-      ui: { tab: 'dashboard', accUser: 'all' }
+      ui: {
+        tab: APP_CONSTANTS.DEFAULT_TAB,
+        accUser: DOMAIN_CONSTANTS.FILTER_ALL
+      }
     };
   }
 
@@ -42,7 +50,7 @@
     }
 
     data.income.forEach(income => {
-      if (!income.currency) income.currency = 'NZD';
+      if (!income.currency) income.currency = DOMAIN_CONSTANTS.DEFAULT_CURRENCY;
     });
 
     data.alloc = Object.assign({}, defaults.alloc, data.alloc);
@@ -55,7 +63,7 @@
     if (dataBuild < 3) {
       data.commitments.forEach(commitment => {
         const account = data.accounts.find(item => item.id === commitment.account);
-        const currency = account && account.currency || 'NZD';
+        const currency = account && account.currency || DOMAIN_CONSTANTS.DEFAULT_CURRENCY;
         if (commitment.amount !== '' && commitment.amount != null) {
           commitment.amount = num(commitment.amount) / currencyRate(currency, data.fx);
         }

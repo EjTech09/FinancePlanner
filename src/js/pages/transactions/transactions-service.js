@@ -3,15 +3,10 @@
 
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.transactionsService = context => {
+    const DOMAIN = window.HouseholdPlannerConstants.domain;
+    const TRANSACTION_CONSTANTS = window.HouseholdPlannerConstants.transactions;
     const { state, rate, num, sum, uid, commit, save, detach } = context;
-    const TYPES = [
-      ['income', 'Income'],
-      ['expense', 'Expense'],
-      ['debt', 'Debt payment'],
-      ['goal', 'Goal contribution'],
-      ['transfer', 'Transfer']
-    ];
-    const TYPE_LABEL = Object.fromEntries(TYPES);
+    const { TYPES, TYPE_LABEL } = TRANSACTION_CONSTANTS;
     const txNZD = transaction => {
       const account = state.accounts.find(item => item.id === transaction.account);
       return num(transaction.amount) * (account ? rate(account.currency) : 1);
@@ -27,7 +22,7 @@
         date: new Date().toISOString().slice(0, 10),
         user: '',
         account: '',
-        type: selectedType !== 'all' ? selectedType : 'expense',
+        type: selectedType !== DOMAIN.FILTER_ALL ? selectedType : TRANSACTION_CONSTANTS.DEFAULT_TYPE,
         related: '',
         description: '',
         amount: ''

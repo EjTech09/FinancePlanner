@@ -3,36 +3,33 @@
 
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.transactionsView = (context, service) => {
+    const DOMAIN = window.HouseholdPlannerConstants.domain;
+    const TRANSACTION_CONSTANTS = window.HouseholdPlannerConstants.transactions;
     const {
       state, num, fmtDate, money, esc, sum, h, $, $$, field, sRow, sCalc, sCol,
       accOpts, userOpts, tile, head, bento, kpiTile
     } = context;
     const { TYPES, TYPE_LABEL, txNZD, hasAmount } = service;
 
-    const TX_IC = {
-      income: ['--green', '<path d="M12 5v14M12 19l-5-5M12 19l5-5"/>'],
-      expense: ['--orange', '<path d="M12 19V5M12 5l-5 5M12 5l5 5"/>'],
-      debt: ['--red', '<rect x="3" y="6" width="18" height="12" rx="3"/><path d="M3 10h18"/>'],
-      goal: ['--blue', '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>'],
-      transfer: ['--indigo', '<path d="M5 9h13M18 9l-3-3M18 9l-3 3M19 15H6M6 15l3-3M6 15l3 3"/>']
-    };
+    const TX_IC = TRANSACTION_CONSTANTS.ICONS;
+    const TYPE = TRANSACTION_CONSTANTS.TYPE;
     const txIcon = type => {
-      const [color, path] = TX_IC[type] || TX_IC.transfer;
+      const [color, path] = TX_IC[type] || TX_IC[TYPE.TRANSFER];
       return `<span class="tx-ic" style="--tc:var(${color})"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg></span>`;
     };
 
     function txRowEl(transaction, onEdit) {
       const account = state.accounts.find(item => item.id === transaction.account);
-      const currency = account ? account.currency : 'NZD';
-      const isIncome = transaction.type === 'income';
-      const sign = transaction.type === 'transfer' ? '' : (isIncome ? '+' : '\u2212');
+      const currency = account ? account.currency : DOMAIN.DEFAULT_CURRENCY;
+      const isIncome = transaction.type === TYPE.INCOME;
+      const sign = transaction.type === TYPE.TRANSFER ? '' : (isIncome ? '+' : '\u2212');
       const subheading = [
         transaction.date
           ? fmtDate(new Date(transaction.date + 'T00:00:00'))
           : 'No date',
         account ? account.name : 'No account'
       ].join(', ');
-      const originalAmount = currency !== 'NZD' && hasAmount(transaction)
+      const originalAmount = currency !== DOMAIN.DEFAULT_CURRENCY && hasAmount(transaction)
         ? ', ' + currency + ' ' + num(transaction.amount).toLocaleString('en-NZ', {
           minimumFractionDigits: 2,
           maximumFractionDigits: 2
@@ -52,9 +49,9 @@
     function txList(onEdit) {
       const wrap = h('div', { class: 'tx-list', 'data-calc': '' });
       wrap._u = () => {
-        const selectedType = state.ui.txType || 'all';
+        const selectedType = state.ui.txType || DOMAIN.FILTER_ALL;
         const transactions = state.transactions
-          .filter(transaction => selectedType === 'all' || transaction.type === selectedType)
+          .filter(transaction => selectedType === DOMAIN.FILTER_ALL || transaction.type === selectedType)
           .slice()
           .sort((first, second) =>
             (second.date || '9999-99-99').localeCompare(first.date || '9999-99-99')
@@ -80,9 +77,9 @@
         }
 
         for (const group of groups) {
-          const income = group.transactions.filter(transaction => transaction.type === 'income');
+          const income = group.transactions.filter(transaction => transaction.type === TYPE.INCOME);
           const outflows = group.transactions.filter(transaction =>
-            ['expense', 'debt', 'goal'].includes(transaction.type)
+            [TYPE.EXPENSE, TYPE.DEBT, TYPE.GOAL].includes(transaction.type)
           );
           const net = sum(income, txNZD) - sum(outflows, txNZD);
           const label = group.month === 'none'
@@ -142,7 +139,8 @@
         ],
         [
           sCalc('Currency', () =>
-            (state.accounts.find(account => account.id === row.account) || {}).currency || 'NZD'
+            (state.accounts.find(account => account.id === row.account) || {}).currency ||
+            DOMAIN.DEFAULT_CURRENCY
           ),
           sCalc('Amount in NZD', () =>
             hasAmount(row) ? money(txNZD(row)) : '\u2014'
@@ -237,11 +235,11 @@
         'Transactions',
         'A record of money in and out. It is for tracking only and does not change balances or the budget. Tap a transaction to see and edit the details.'
       ));
-      const selectedType = state.ui.txType || 'all';
-      const countByType = type => type === 'all'
+      const selectedType = state.ui.txType || DOMAIN.FILTER_ALL;
+      const countByType = type => type === DOMAIN.FILTER_ALL
         ? state.transactions.length
         : state.transactions.filter(transaction => transaction.type === type).length;
-      const filterItems = [['all', 'All'], ...TYPES];
+      const filterItems = [[DOMAIN.FILTER_ALL, 'All'], ...TYPES];
       const filters = h(
         'div',
         { class: 'fl-list', role: 'group', 'aria-label': 'Filter by type' },
@@ -266,10 +264,10 @@
         }, 'Add transaction')
       );
       el.append(bento(
-        kpiTile('Income', () => money(service.totalByType('income')), 'money in'),
-        kpiTile('Expenses', () => money(service.totalByType('expense')), 'everyday spending'),
-        kpiTile('Debt payments', () => money(service.totalByType('debt')), 'paid towards debts'),
-        kpiTile('Goal contributions', () => money(service.totalByType('goal')), 'put towards goals'),
+        kpiTile('Income', () => money(service.totalByType(TYPE.INCOME)), 'money in'),
+        kpiTile('Expenses', () => money(service.totalByType(TYPE.EXPENSE)), 'everyday spending'),
+        kpiTile('Debt payments', () => money(service.totalByType(TYPE.DEBT)), 'paid towards debts'),
+        kpiTile('Goal contributions', () => money(service.totalByType(TYPE.GOAL)), 'put towards goals'),
         tile(8, { class: 'tx-list-tile' }, h('h2', {}, 'All transactions'), txList(onEdit)),
         side
       ));

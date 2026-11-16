@@ -11,7 +11,8 @@ Open [`index.html`](index.html) directly in a browser. The legacy [`household-pl
 - `data/` contains the sample household datasets, including the worst-case scenario. Import either JSON file from the app.
 - `src/css/` contains the application stylesheet.
 - `src/js/pages/<page>/` contains one page renderer, with optional page-specific models or services alongside it.
-- `src/js/shared/models/`, `src/js/shared/services/`, `src/js/shared/components/`, and `src/js/shared/utils/` contain code reused across pages.
+- `src/js/pages/<page>/<page>-constants.js` contains page-specific static configuration and lookup values.
+- `src/js/shared/constants/` contains application-wide and domain constants; `src/js/shared/models/`, `src/js/shared/services/`, `src/js/shared/components/`, and `src/js/shared/utils/` contain shared logic.
 - `src/js/app.js` coordinates the application state and page renderers.
 - `index.html` is the application shell.
 

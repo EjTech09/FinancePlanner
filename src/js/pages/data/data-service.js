@@ -3,6 +3,7 @@
 
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.dataService = context => {
+    const PAGE_ID = window.HouseholdPlannerConstants.app.PAGE_ID;
     const {
       state, persistence, replaceState, setLegacy, markDirty
     } = context;
@@ -14,7 +15,7 @@
     const clearData = () => {
       replaceState(persistence.blank());
       setLegacy(false);
-      state.ui.tab = 'data';
+      state.ui.tab = PAGE_ID.DATA;
       markDirty();
     };
 

@@ -9,6 +9,9 @@
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.planView = (context, service) => {
+    const PLAN_CONSTANTS = window.HouseholdPlannerConstants.plan;
+    const DEFAULT_CURRENCY = window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY;
+    const { MONEY_EPSILON } = window.HouseholdPlannerConstants.domain;
     const { state, D, sum, money, num, h, $, head, tile, bento, CATS, field, sRow, sCalc, sCol, userOpts, curOpts, rate, accountCurrency, nameOf, cls, esc, fmtDate, liv, itemList, expandable, totalsEl } = context;
     const { pctOf, byPriority } = service;
 
@@ -18,7 +21,7 @@
       const limit = summary.limit[category];
       const used = summary.budgeted[category];
       const left = limit - used;
-      const over = left < -0.005;
+      const over = left < -MONEY_EPSILON;
       const percentage = limit > 0
         ? Math.min(used / limit, 1) * 100
         : used > 0 ? 100 : 0;
@@ -39,7 +42,7 @@
         const total = summary.totalBudgeted;
         const remaining = income - total;
         const scale = Math.max(income, total, 1);
-        const isOverAllocated = remaining < -0.005;
+        const isOverAllocated = remaining < -MONEY_EPSILON;
         const shares = sum(Object.values(state.alloc), value => value);
         const sharesTotalOneHundred = Math.abs(shares - 100) < 0.01;
         const segments = CATS.map(([key,, color]) =>
@@ -70,7 +73,7 @@
         const summary = D();
         const rows = CATS.map(([category, name, color]) => {
           const left = summary.limit[category] - summary.budgeted[category];
-          const isOver = left < -0.005;
+          const isOver = left < -MONEY_EPSILON;
           const limit = summary.limit[category];
           const used = summary.budgeted[category];
           const percentage = limit > 0
@@ -151,14 +154,12 @@
       return el;
     };
 
-    const KIND_COLOR = { income: '--c2', essential: '--c1', discretionary: '--c4' };
-    const KIND_ICON = { income: '<path d="M12 5v14M12 19l-5-5M12 19l5-5"/>', essential: '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>', discretionary: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/>' };
-    const kindIcon = kind => `<span class="tx-ic" style="--tc:var(${KIND_COLOR[kind]})"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${KIND_ICON[kind]}</svg></span>`;
+    const kindIcon = kind => `<span class="tx-ic" style="--tc:var(${PLAN_CONSTANTS.KIND_COLOR[kind]})"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PLAN_CONSTANTS.KIND_ICON[kind]}</svg></span>`;
     function moneyItem(row, kind, labels, collection, shareOfSection, actions) {
       const nameKey = kind === 'income' ? 'source' : 'name';
       const itemTitle = kind === 'income' ? 'income' : 'expense';
-      const amountInNZD = () => num(row.amount) * rate(row.currency || 'NZD');
-      const isForeignCurrency = () => row.currency && row.currency !== 'NZD';
+      const amountInNZD = () => num(row.amount) * rate(row.currency || DEFAULT_CURRENCY);
+      const isForeignCurrency = () => row.currency && row.currency !== DEFAULT_CURRENCY;
       const item = h('div', { class: 'acc-item', 'data-id': row.id });
       const header = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
         liv(() => kindIcon(kind), 'span', 'li-ic'),
@@ -360,7 +361,7 @@
           liv(() => esc(debt.name || 'Untitled debt'), 'b'),
           liv(() => {
             const summary = debtSummary();
-            const coverageText = summary.unfunded < 0.005
+            const coverageText = summary.unfunded < MONEY_EPSILON
               ? 'fully covered' + (summary.funded - summary.bal > 0.5
                 ? ', ' + money(summary.funded - summary.bal, 0) + ' extra set aside'
                 : '')

@@ -3,6 +3,7 @@
 
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.planService = context => {
+    const DEFAULT_CURRENCY = window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY;
     const { state, num, uid, detach } = context;
     const pctOf = (amount, total) => total > 0 ? num(amount) / total * 100 : 0;
     const byPriority = (first, second) => {
@@ -24,7 +25,7 @@
         source: '',
         user: '',
         amount: '',
-        currency: 'NZD'
+        currency: DEFAULT_CURRENCY
       };
       state.income.push(income);
       return income;
@@ -54,7 +55,7 @@
         borrower: '',
         creditor: '',
         due: '',
-        currency: 'NZD',
+        currency: DEFAULT_CURRENCY,
         balance: '',
         monthly: ''
       };

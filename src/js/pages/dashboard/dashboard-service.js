@@ -3,6 +3,9 @@
 
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.dashboardService = context => {
+    const { MIN_SCALE, RING_RADIUS } = window.HouseholdPlannerConstants.dashboard;
+    const { MONEY_EPSILON } = window.HouseholdPlannerConstants.domain;
+    const { PAGE_ID } = window.HouseholdPlannerConstants.app;
     const { state, D, num, sum, save, render } = context;
 
     const summary = () => {
@@ -10,10 +13,10 @@
       const inc = R.income;
       const tot = R.totalBudgeted;
       const left = inc - tot;
-      const top = Math.max(inc, tot, 1);
-      const over = left < -0.005;
+      const top = Math.max(inc, tot, MIN_SCALE);
+      const over = left < -MONEY_EPSILON;
       const pct = inc > 0 ? tot / inc * 100 : 0;
-      const circumference = 2 * Math.PI * 48;
+      const circumference = 2 * Math.PI * RING_RADIUS;
       const dash = Math.min(pct, 100) / 100 * circumference;
       const goalsOn = state.goals.filter(goal => R.goals[goal.id].hasTarget);
       const onTrack = goalsOn.filter(goal => /^(On track|Reached)/.test(R.goals[goal.id].status)).length;
@@ -21,10 +24,13 @@
         /^(On track|Fully funded)/.test(R.debts[debt.id].status)
       ).length;
       const goalScale = Math.max(
-        1,
+        MIN_SCALE,
         ...state.goals.map(goal => Math.max(num(goal.monthly), R.goals[goal.id].required || 0))
       );
-      const debtScale = Math.max(1, ...state.debts.map(debt => R.debts[debt.id].bal));
+      const debtScale = Math.max(
+        MIN_SCALE,
+        ...state.debts.map(debt => R.debts[debt.id].bal)
+      );
       const people = state.users.map(user => {
         const accounts = state.accounts
           .filter(account => account.user === user.id)
@@ -37,7 +43,10 @@
           accountCount: accounts.length
         };
       }).filter(person => person.accountCount);
-      const peopleScale = Math.max(1, ...people.map(person => Math.max(person.net, 0)));
+      const peopleScale = Math.max(
+        MIN_SCALE,
+        ...people.map(person => Math.max(person.net, 0))
+      );
 
       return {
         R, inc, tot, left, top, over, pct, circumference, dash,
@@ -46,7 +55,7 @@
     };
 
     const startFromScratch = () => {
-      state.ui.tab = 'data';
+      state.ui.tab = PAGE_ID.DATA;
       save();
       render();
     };

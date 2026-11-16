@@ -97,7 +97,7 @@
         <li>Open <a href="README.md">README.md</a> for the project conventions and entry point.</li>
         <li>Run the app by opening <a href="index.html">index.html</a> directly in a modern browser. There is no build step or package install.</li>
         <li>Explore the <strong>People and data</strong> tab. Export a JSON backup before testing destructive data changes; the sample files in <a href="data/">data/</a> can be imported for realistic data.</li>
-        <li>For account-related work, read the page collaborators: <a href="src/js/pages/accounts/accounts-controller.js">accounts-controller.js</a>, <a href="src/js/pages/accounts/accounts-view.js">accounts-view.js</a>, <a href="src/js/pages/accounts/accounts-service.js">accounts-service.js</a>, <a href="src/js/app.js">app.js</a>, <a href="src/js/shared/models/household-planner-model.js">household-planner-model.js</a>, and <a href="src/js/shared/services/persistence.js">persistence.js</a>.</li>
+        <li>For account-related work, read the page collaborators: <a href="src/js/pages/accounts/accounts-controller.js">accounts-controller.js</a>, <a href="src/js/pages/accounts/accounts-view.js">accounts-view.js</a>, <a href="src/js/pages/accounts/accounts-service.js">accounts-service.js</a>, <a href="src/js/pages/accounts/accounts-constants.js">accounts-constants.js</a>, <a href="src/js/app.js">app.js</a>, <a href="src/js/shared/models/household-planner-model.js">household-planner-model.js</a>, and <a href="src/js/shared/services/persistence.js">persistence.js</a>.</li>
       </ol>
       <p class="callout"><strong>Privacy boundary:</strong> household data is stored in this browser’s local storage and the app does not upload it. The exchange-rate service makes a separate request to <code>open.er-api.com</code>; do not add personal financial data to that request.</p>
     </section>
@@ -120,7 +120,7 @@
         </article>
         <article class="card">
           <h3>Page controllers</h3>
-          <p>Each page under <a href="src/js/pages/">src/js/pages/</a> is split into <code>&lt;pagename&gt;-controller.js</code> (page actions and coordination), <code>&lt;pagename&gt;-view.js</code> (DOM rendering), and <code>&lt;pagename&gt;-service.js</code> (state operations and calculations). Scripts receive shared helpers through the app context.</p>
+          <p>Each page under <a href="src/js/pages/">src/js/pages/</a> is split into <code>&lt;pagename&gt;-controller.js</code> (page actions and coordination), <code>&lt;pagename&gt;-view.js</code> (DOM rendering), <code>&lt;pagename&gt;-service.js</code> (state operations and calculations), and, when needed, <code>&lt;pagename&gt;-constants.js</code> (page-specific static values). Shared constants live in <a href="src/js/shared/constants/">src/js/shared/constants/</a>. Scripts receive shared helpers through the app context.</p>
         </article>
         <article class="card">
           <h3>Persistence and FX</h3>

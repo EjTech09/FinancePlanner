@@ -7,6 +7,8 @@
  * This model centralises conversions, budget totals, account summaries, debt
  * status, and goal progress so the view layers can stay focused on rendering.
  */
+const CURRENCY = window.HouseholdPlannerConstants.domain.CURRENCY;
+const MONEY_EPSILON = window.HouseholdPlannerConstants.domain.MONEY_EPSILON;
 const toNumber = value => {
   if (value === '' || value == null || !isFinite(+value)) return 0;
   return +value;
@@ -16,8 +18,8 @@ const sumBy = (items, selector) => items.reduce((total, item) => {
   return total + toNumber(value);
 }, 0);
 const currencyRate = (currency, rates) => {
-  if (currency === 'PHP') return 1 / (toNumber(rates.php) || 1);
-  if (currency === 'USD') return toNumber(rates.usd);
+  if (currency === CURRENCY.PHP) return 1 / (toNumber(rates.php) || 1);
+  if (currency === CURRENCY.USD) return toNumber(rates.usd);
   return 1;
 };
 
@@ -33,7 +35,7 @@ function calculatePlan({
   const remaining = Math.max(balance - committed, 0);
   const monthlyPayment = toNumber(monthly);
   let monthsToPayOff = null;
-  if (remaining < 0.005) monthsToPayOff = 0;
+  if (remaining < MONEY_EPSILON) monthsToPayOff = 0;
   else if (monthlyPayment > 0) {
     monthsToPayOff = Math.ceil(remaining / monthlyPayment - 1e-9);
   }
@@ -45,13 +47,13 @@ function calculatePlan({
 
   let requiredMonthlyAmount = null;
   if (monthsUntilDue != null) {
-    if (remaining < 0.005) requiredMonthlyAmount = 0;
+    if (remaining < MONEY_EPSILON) requiredMonthlyAmount = 0;
     else if (monthsUntilDue <= 0) requiredMonthlyAmount = remaining;
     else requiredMonthlyAmount = remaining / monthsUntilDue;
   }
 
   let status;
-  if (remaining < 0.005) status = completedStatus;
+  if (remaining < MONEY_EPSILON) status = completedStatus;
   else if (monthsToPayOff == null) status = noPaymentStatus;
   else if (monthsUntilDue == null) status = 'No due date';
   else if (monthsToPayOff <= monthsUntilDue) status = 'On track';
@@ -77,7 +79,8 @@ function calculateSummary(state, asOfDate) {
   const summary = { accounts: {}, goals: {}, debts: {} };
   const rateFor = currency => currencyRate(currency, state.fx);
   const currencyForAccount = accountId =>
-    (state.accounts.find(account => account.id === accountId) || {}).currency || 'NZD';
+    (state.accounts.find(account => account.id === accountId) || {}).currency ||
+    window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY;
   const commitmentInNZD = commitment =>
     toNumber(commitment.amount) * rateFor(currencyForAccount(commitment.account));
   const committedForTarget = target =>
@@ -100,9 +103,9 @@ function calculateSummary(state, asOfDate) {
     const free = net - committed;
 
     let status;
-    if (net < -0.005) status = 'Liabilities exceed balance';
-    else if (free < -0.005) status = 'Over-committed';
-    else if (Math.abs(free) < 0.005) status = 'Fully committed';
+    if (net < -MONEY_EPSILON) status = 'Liabilities exceed balance';
+    else if (free < -MONEY_EPSILON) status = 'Over-committed';
+    else if (Math.abs(free) < MONEY_EPSILON) status = 'Fully committed';
     else status = 'Uncommitted funds available';
 
     summary.accounts[account.id] = {

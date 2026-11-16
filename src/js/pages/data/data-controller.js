@@ -3,6 +3,7 @@
 
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.data = context => {
+    const DATA_CONSTANTS = window.HouseholdPlannerConstants.data;
     const { state, h, save, render } = context;
     const service = window.HouseholdPlannerPages.dataService(context);
     const view = window.HouseholdPlannerPages.dataView(context, service);
@@ -13,7 +14,7 @@
       });
       const link = h('a', {
         href: URL.createObjectURL(data),
-        download: 'household-planner-data.json'
+        download: DATA_CONSTANTS.EXPORT_FILENAME
       });
       document.body.append(link);
       link.click();

@@ -11,6 +11,10 @@
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.accountsView = (context, service) => {
+    const DOMAIN = window.HouseholdPlannerConstants.domain;
+    const ACCOUNT_CONSTANTS = window.HouseholdPlannerConstants.accounts;
+    const COMMITMENT_KIND = ACCOUNT_CONSTANTS.COMMITMENT_KIND;
+    const { MONEY_EPSILON } = DOMAIN;
     const { state, D, h, $, money, moneyCur, num, sum, esc, rate, accountCurrency, nameOf, cls, userOpts, accOpts, targetOpts, curOpts, sRow, sCalc, sCol, field, seg, refreshExchangeRates, exchangeRates, bento, tile, head, kpiTile, txIcon, liv, itemList, expandable, totalsEl } = context;
 
     /* ---------- Shared-state reads and derived values ---------- */
@@ -57,7 +61,7 @@
         h('span', { class: 'tx-amt' },
           liv(() => {
             const free = accountSummary().free;
-            return `<span class="${free < -0.005 ? 'bad' : ''}">${money(free)}</span>`;
+            return `<span class="${free < -MONEY_EPSILON ? 'bad' : ''}">${money(free)}</span>`;
           }, 'b'),
           h('small', {}, 'free to use')
         ),
@@ -103,16 +107,20 @@
      */
     function comItem(c, actions) {
       const kind = () => {
-        if ((c.target || '').startsWith('debt:')) return 'debt';
-        if ((c.target || '').startsWith('goal:')) return 'goal';
-        return 'other';
+        if ((c.target || '').startsWith(COMMITMENT_KIND.DEBT_PREFIX)) return COMMITMENT_KIND.DEBT;
+        if ((c.target || '').startsWith(COMMITMENT_KIND.GOAL_PREFIX)) return COMMITMENT_KIND.GOAL;
+        return COMMITMENT_KIND.OTHER;
       };
       const what = () => {
-        if (kind() === 'debt') return nameOf('debts', c.target.slice(5)) || 'Unknown debt';
-        if (kind() === 'goal') return nameOf('goals', c.target.slice(5)) || 'Unknown goal';
+        if (kind() === COMMITMENT_KIND.DEBT) {
+          return nameOf('debts', c.target.slice(COMMITMENT_KIND.DEBT_PREFIX.length)) || 'Unknown debt';
+        }
+        if (kind() === COMMITMENT_KIND.GOAL) {
+          return nameOf('goals', c.target.slice(COMMITMENT_KIND.GOAL_PREFIX.length)) || 'Unknown goal';
+        }
         return c.label || 'Something else';
       };
-      const KIND = { debt: 'Debt', goal: 'Goal', other: 'Other' };
+      const kindLabels = ACCOUNT_CONSTANTS.COMMITMENT_KIND_LABELS;
       const item = h('div', { class: 'acc-item', 'data-id': c.id });
       const accountInput = field(sCol('Account', 'account', 'select', {
         opts: accOpts,
@@ -128,11 +136,15 @@
       const header = h(
         'button',
         { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
-        liv(() => txIcon(kind() === 'other' ? 'transfer' : kind()), 'span', 'li-ic'),
+        liv(() => txIcon(
+          kind() === COMMITMENT_KIND.OTHER
+            ? window.HouseholdPlannerConstants.transactions.TYPE.TRANSFER
+            : kind()
+        ), 'span', 'li-ic'),
         h('span', { class: 'tx-main' },
           liv(() => esc(what()), 'b'),
           liv(() => 'From ' + esc(nameOf('accounts', c.account) || 'no account'), 'small'),
-          liv(() => `<span class="pill neu">${KIND[kind()]}</span>`, 'span')
+          liv(() => `<span class="pill neu">${kindLabels[kind()]}</span>`, 'span')
         ),
         h('span', { class: 'tx-amt' },
           liv(() => moneyCur(num(c.amount), accountCurrency(c.account)), 'b'),
@@ -224,20 +236,20 @@
         'Balances stay in each account\u2019s own currency and are converted to NZD with the rates below. Use the filter to look at one person at a time.'
       ));
       const countAccounts = userId => state.accounts.filter(account => {
-        if (userId === 'all') return true;
-        if (userId === 'none') return !account.user;
+        if (userId === DOMAIN.FILTER_ALL) return true;
+        if (userId === DOMAIN.FILTER_NONE) return !account.user;
         return account.user === userId;
       }).length;
       const filterItems = [
-        ['all', 'All', countAccounts('all')],
+        [DOMAIN.FILTER_ALL, 'All', countAccounts(DOMAIN.FILTER_ALL)],
         ...state.users.map(user => [
           user.id,
           user.name || '(unnamed)',
           countAccounts(user.id)
         ])
       ];
-      if (countAccounts('none')) {
-        filterItems.push(['none', 'No user', countAccounts('none')]);
+      if (countAccounts(DOMAIN.FILTER_NONE)) {
+        filterItems.push([DOMAIN.FILTER_NONE, 'No user', countAccounts(DOMAIN.FILTER_NONE)]);
       }
       const fxInput = (key, label) => {
         const input = h('input', {

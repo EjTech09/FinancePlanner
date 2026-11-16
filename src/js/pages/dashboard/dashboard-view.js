@@ -9,6 +9,10 @@
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.dashboardView = (context, service) => {
+     const {
+       RING_CENTER, RING_RADIUS, RING_VIEWBOX_SIZE, RING_DASH_THRESHOLD
+     } = window.HouseholdPlannerConstants.dashboard;
+    const { MONEY_EPSILON } = window.HouseholdPlannerConstants.domain;
     const { state, CATS, money, num, sum, esc, cls, fmtDate, asOf, h, head, tile, hasData, startImport } = context;
 
     const dashView = startFromScratch => {
@@ -20,7 +24,7 @@
         `<i style="width:${R.budgeted[key] / top * 100}%;background:var(--${color})"></i>`
       ).join('') + `<i style="width:${Math.max(left, 0) / top * 100}%"></i>`;
       const leg = CATS.map(([key, name, color]) => {
-        const isOverLimit = R.budgeted[key] > R.limit[key] + 0.005;
+        const isOverLimit = R.budgeted[key] > R.limit[key] + MONEY_EPSILON;
         const overage = isOverLimit ? ', over by ' + money(R.budgeted[key] - R.limit[key], 0) : '';
         return `<li><span class="dot" style="background:var(--${color})"></span><b>${name}</b><small class="${isOverLimit ? 'bad' : ''}">${money(R.budgeted[key], 0)} of ${money(R.limit[key], 0)} limit${overage}</small></li>`;
       }).join('');
@@ -50,7 +54,7 @@
           <p class="sub">Each colour is a budget section. The grey part is income you have not allocated yet.</p>
           <div class="split" role="img" aria-label="Monthly income split by budget category">${segs}</div><ul class="legend">${leg}</ul></section>
         <section class="tile s-4 ring-tile ${over ? 'tint-red' : 'tint-green'}"><h2>Allocated</h2>
-          <div class="ring-wrap"><svg viewBox="0 0 120 120" role="img" aria-label="${pct.toFixed(0)} percent of income allocated"><circle class="ring-bg" cx="60" cy="60" r="48"/><circle class="ring-fg" cx="60" cy="60" r="48" stroke-dasharray="${dash} ${circumference}" transform="rotate(-90 60 60)"${dash < 0.5 ? ' style="display:none"' : ''}/></svg>
+          <div class="ring-wrap"><svg viewBox="0 0 ${RING_VIEWBOX_SIZE} ${RING_VIEWBOX_SIZE}" role="img" aria-label="${pct.toFixed(0)} percent of income allocated"><circle class="ring-bg" cx="${RING_CENTER}" cy="${RING_CENTER}" r="${RING_RADIUS}"/><circle class="ring-fg" cx="${RING_CENTER}" cy="${RING_CENTER}" r="${RING_RADIUS}" stroke-dasharray="${dash} ${circumference}" transform="rotate(-90 ${RING_CENTER} ${RING_CENTER})"${dash < RING_DASH_THRESHOLD ? ' style="display:none"' : ''}/></svg>
             <div class="ring-c"><b>${pct.toFixed(0)}%</b><span>of income</span></div></div>
           <p class="ring-cap ${over ? 'bad' : 'ok'}">${over ? money(-left, 0) + ' over-allocated' : money(left, 0) + ' left unbudgeted'}</p></section>
         <section class="tile s-3 kpi"><div class="k-label">Savings rate</div><div class="k-val">${inc ? (R.budgeted.savings / inc * 100).toFixed(1) : '0.0'}%</div><div class="k-cap">of income goes to goals</div></section>
