@@ -43,10 +43,6 @@
         service.setAccountFilter(userId);
         save();
         render();
-      },
-      updateExchangeRate(key, input) {
-        service.updateExchangeRate(key, input);
-        commit();
       }
     };
 

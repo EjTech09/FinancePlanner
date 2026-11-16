@@ -19,7 +19,7 @@
   }).format(amount);
   const moneyCur = (amount, currency) => new Intl.NumberFormat('en-NZ', {
     style: 'currency',
-    currency: window.HouseholdPlannerConstants.domain.CURRENCIES.includes(currency)
+    currency: /^[A-Z]{3}$/.test(currency || '')
       ? currency
       : window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY,
     minimumFractionDigits: 2,

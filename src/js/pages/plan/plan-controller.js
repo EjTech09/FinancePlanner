@@ -23,6 +23,10 @@
         commit();
         render();
       },
+      setFrequency(item, frequency) {
+        service.setFrequency(item, frequency);
+        commit();
+      },
       deleteMoneyItem(row, collection, item, itemTitle) {
         if (!confirm('Delete this ' + itemTitle + '? This cannot be undone.')) return;
         service.deleteMoneyItem(row, collection);

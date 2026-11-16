@@ -4,9 +4,7 @@
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.accountsService = context => {
     const DOMAIN = window.HouseholdPlannerConstants.domain;
-    const {
-      state, uid, detach, rate, accountCurrency, num, exchangeRates
-    } = context;
+    const { state, uid, detach, rate, accountCurrency, num } = context;
 
     const accFilter = () => {
       const filter = state.ui.accUser || DOMAIN.FILTER_ALL;
@@ -66,11 +64,6 @@
     const setAccountFilter = userId => {
       state.ui.accUser = userId;
     };
-    const updateExchangeRate = (key, input) => {
-      state.fx[key] = input.value === '' ? 0 : parseFloat(input.value);
-      state.fx[key + 'UpdatedAt'] = null;
-      exchangeRates.setStatus(`Using the manually entered ${key === 'php' ? 'PHP/NZD' : 'USD/NZD'} rate.`);
-    };
     const convertAccountCommitments = (accountId, oldCurrency, newCurrency) => {
       const from = rate(oldCurrency);
       const to = rate(newCurrency);
@@ -104,7 +97,6 @@
       createAccount,
       createCommitment,
       setAccountFilter,
-      updateExchangeRate,
       convertAccountCommitments,
       convertCommitmentForAccount
     };

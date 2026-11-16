@@ -4,7 +4,7 @@
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.data = context => {
     const DATA_CONSTANTS = window.HouseholdPlannerConstants.data;
-    const { state, h, save, render } = context;
+    const { state, h, save, render, commit, refreshExchangeRates } = context;
     const service = window.HouseholdPlannerPages.dataService(context);
     const view = window.HouseholdPlannerPages.dataView(context, service);
 
@@ -46,6 +46,39 @@
       render();
     };
 
-    return () => view({ exportJson, clearData, addTransactionCategory, removeTransactionCategory });
+    const addExchangeRate = (currency, value) => {
+      if (!service.addExchangeRate(currency, value)) {
+        alert('Enter a unique three-letter currency code and a rate greater than zero.');
+        return false;
+      }
+      commit();
+      render();
+      return true;
+    };
+    const updateExchangeRate = (currency, input) => {
+      if (!service.updateExchangeRate(currency, input)) return;
+      commit();
+    };
+    const removeExchangeRate = currency => {
+      if (service.currencyUsage(currency)) {
+        alert(`Move all accounts, income, and debts out of ${currency} before removing its rate.`);
+        return;
+      }
+      if (!confirm(`Remove the ${currency} exchange rate?`)) return;
+      service.removeExchangeRate(currency);
+      commit();
+      render();
+    };
+
+    return () => view({
+      exportJson,
+      clearData,
+      addTransactionCategory,
+      removeTransactionCategory,
+      addExchangeRate,
+      updateExchangeRate,
+      removeExchangeRate,
+      refreshExchangeRates
+    });
   };
 })();

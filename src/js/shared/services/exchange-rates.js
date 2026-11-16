@@ -20,11 +20,19 @@
 
     async function refresh(automatic = false) {
       const activeInput = document.activeElement;
-      const rateInputs = ['PHP per 1 NZD', 'NZD per 1 USD'];
-      const editingRate = rateInputs.some(label =>
-        query('input[aria-label="' + label + '"]') === activeInput
-      );
+      const editingRate = activeInput && activeInput.matches &&
+        activeInput.matches('input[data-fx-currency]');
       if (refreshing || (automatic && editingRate)) return;
+
+      const currentState = getState();
+      const hasProviderRates = ['PHP', 'USD'].some(currency =>
+        Object.prototype.hasOwnProperty.call(currentState.fx.rates, currency)
+      );
+      if (!hasProviderRates) {
+        statusText = 'No provider-supported currency rates are configured. Add PHP or USD to refresh provider rates.';
+        updateStatus();
+        return;
+      }
 
       refreshing = true;
       statusText = 'Fetching the latest available PHP/NZD and USD/NZD rates...';
@@ -45,35 +53,47 @@
         const usdToNzd = Number(data.rates && data.rates.NZD);
         const usdToPhp = Number(data.rates && data.rates.PHP);
         const phpPerNzd = usdToPhp / usdToNzd;
+        const nzdPerPhp = usdToNzd / usdToPhp;
         const updatedAt = new Date(Number(data.time_last_update_unix) * 1000);
         const hasValidRates = Number.isFinite(usdToNzd) && usdToNzd > 0 &&
           Number.isFinite(usdToPhp) && usdToPhp > 0 &&
-          Number.isFinite(phpPerNzd);
+          Number.isFinite(phpPerNzd) && Number.isFinite(nzdPerPhp);
         if (data.result !== 'success' || !hasValidRates || !Number.isFinite(updatedAt.getTime())) {
           throw new Error('Exchange-rate service returned invalid PHP/NZD or USD/NZD data');
         }
 
         const state = getState();
-        state.fx.php = phpPerNzd;
-        state.fx.usd = usdToNzd;
-        state.fx.phpUpdatedAt = updatedAt.toISOString();
-        state.fx.usdUpdatedAt = updatedAt.toISOString();
-        statusText = `Latest rates: PHP/NZD ${phpPerNzd.toFixed(5)} and USD/NZD ${usdToNzd.toFixed(5)}. Provider data updated ${updatedAt.toLocaleString('en-NZ')}.`;
+        if (Object.prototype.hasOwnProperty.call(state.fx.rates, 'PHP')) {
+          state.fx.rates.PHP = nzdPerPhp;
+          state.fx.updatedAt.PHP = updatedAt.toISOString();
+        }
+        if (Object.prototype.hasOwnProperty.call(state.fx.rates, 'USD')) {
+          state.fx.rates.USD = usdToNzd;
+          state.fx.updatedAt.USD = updatedAt.toISOString();
+        }
+        const refreshed = [];
+        if (Object.prototype.hasOwnProperty.call(state.fx.rates, 'PHP')) {
+          refreshed.push(`PHP/NZD ${phpPerNzd.toFixed(5)}`);
+        }
+        if (Object.prototype.hasOwnProperty.call(state.fx.rates, 'USD')) {
+          refreshed.push(`USD/NZD ${usdToNzd.toFixed(5)}`);
+        }
+        statusText = refreshed.length
+          ? `Latest rates: ${refreshed.join(' and ')}. Provider data updated ${updatedAt.toLocaleString('en-NZ')}.`
+          : 'No provider-supported currency rates are configured. Add PHP or USD to refresh provider rates.';
         commit();
 
         const refreshedRates = [
-          ['PHP per 1 NZD', phpPerNzd],
-          ['NZD per 1 USD', usdToNzd]
+          ['PHP', nzdPerPhp],
+          ['USD', usdToNzd]
         ];
-        refreshedRates.forEach(([label, value]) => {
-          const input = query('input[aria-label="' + label + '"]');
+        refreshedRates.forEach(([currency, value]) => {
+          const input = query('input[data-fx-currency="' + currency + '"]');
           if (input && document.activeElement !== input) input.value = String(value);
         });
       } catch (error) {
-        const { num } = window.HouseholdPlannerModel;
         console.error('Unable to refresh the PHP/NZD and USD/NZD exchange rates:', error);
-        const state = getState();
-        statusText = `Could not refresh exchange rates. Using saved rates: PHP/NZD ${num(state.fx.php).toFixed(5)} and USD/NZD ${num(state.fx.usd).toFixed(5)}.`;
+        statusText = 'Could not refresh exchange rates. Using the saved rates.';
       } finally {
         clearTimeout(timeout);
         refreshing = false;

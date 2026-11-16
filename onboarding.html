@@ -112,7 +112,7 @@
         </article>
         <article class="card">
           <h3>Shared calculations</h3>
-          <p><a href="src/js/shared/models/household-planner-model.js">The model</a> converts currencies and derives account, debt, goal, and budget summaries. Views should display these results rather than reimplementing totals.</p>
+          <p><a href="src/js/shared/models/household-planner-model.js">The model</a> converts currencies and recurring income, expense, goal, and debt amounts to monthly values before deriving summaries. Older records without a frequency default to monthly. The Plan page displays budget totals using the selected period. Views should display these results rather than reimplementing totals.</p>
         </article>
         <article class="card">
           <h3>Shared UI and helpers</h3>
@@ -145,15 +145,14 @@
             <tr><td>Account cards</td><td>Show balance, liabilities, committed amount, free amount, and status; expand to edit account fields.</td><td>Balances and liabilities are entered in the account’s currency. Summary values are converted to NZD.</td></tr>
             <tr><td>Set-aside commitments</td><td>Connect an amount to an account and a debt, goal, or free-text purpose.</td><td>The entered amount is in the selected account’s currency; the aggregate total is reported in NZD.</td></tr>
             <tr><td>Person filter</td><td>Shows all accounts, accounts with no owner, or one person’s accounts.</td><td>The selection is saved in <code>state.ui.accUser</code>. A stored value for a deleted/unknown person falls back to “all.”</td></tr>
-            <tr><td>Exchange-rate controls</td><td>Allow manual PHP/NZD and USD/NZD rates or a provider refresh.</td><td>Editing a rate clears its provider timestamp. Refreshing is automatic at startup and every 15 minutes; the service avoids automatic refresh while a rate input is focused.</td></tr>
+            <tr><td>Exchange-rate controls</td><td>On People and data, add, edit, or remove supported currency rates; PHP and USD can also be refreshed from the provider.</td><td><code>state.fx.rates</code> maps a three-letter currency code to NZD per one unit. NZD is fixed at 1. A rate cannot be removed while an account, income item, or debt uses that currency. Refreshing is automatic at startup and every 15 minutes; the service avoids automatic refresh while a rate input is focused.</td></tr>
           </tbody>
         </table>
       </div>
       <h3>Currency conventions</h3>
       <ul>
-        <li><code>state.fx.php</code> is PHP per 1 NZD, so a PHP amount converts to NZD by dividing by this rate.</li>
-        <li><code>state.fx.usd</code> is NZD per 1 USD, so a USD amount converts to NZD by multiplying by this rate.</li>
-        <li>NZD is the default currency and converts at 1. Keep input labels, display labels, model math, and import normalization consistent if adding a currency.</li>
+        <li><code>state.fx.rates.PHP</code> is NZD per 1 PHP; <code>state.fx.rates.USD</code> is NZD per 1 USD.</li>
+        <li>NZD is the default currency and converts at 1. Other configured currencies use their NZD-per-unit rate in account, income, and debt selectors.</li>
         <li>Changing an account’s currency or moving a commitment to another account adjusts its stored amount using the old/new NZD rates, preserving its NZD value when both rates are valid.</li>
       </ul>
       <h3>Editing and refresh conventions</h3>

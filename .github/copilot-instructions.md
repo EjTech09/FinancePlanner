@@ -32,10 +32,7 @@ If a change affects calculations, validate the numbers in the app rather than re
 
 - Keep page-specific behavior in the page renderer and reusable UI logic in shared components; do not duplicate calculations in page files.
 - Route UI updates through `commit()`, which marks the state dirty, saves it, and refreshes the derived values. Most field editors call `commit()` after changing a model value.
-- Preserve the app’s currency model: account, debt, and goal values are normalized to NZD when computing summaries. The app treats:
-  - `PHP`: divide by `state.fx.php`
-  - `USD`: multiply by `state.fx.usd`
-  - `NZD`: unchanged at `1`
+- Preserve the app’s currency model: account, debt, income, and transaction values are normalized to NZD when computing summaries. `state.fx.rates` maps each configured three-letter currency code to NZD per one unit; NZD is the base at `1`. PHP and USD rates can be refreshed from the provider when configured.
 - Respect relationship cleanup: `detach()` is the central place for clearing references when deleting users, accounts, goals, or debts. This includes commitments, transaction account references, and owner references.
 - Prefer existing helpers rather than reimplementing logic: `field()`, `uid()`, `markDirty()`, `esc()`, `money()`, `moneyCur()`, `calcEl()`, `tableView`, and the shared `HouseholdPlannerModel` functions.
 - Follow repository naming conventions:

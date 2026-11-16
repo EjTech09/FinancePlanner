@@ -15,7 +15,7 @@
     const ACCOUNT_CONSTANTS = window.HouseholdPlannerConstants.accounts;
     const COMMITMENT_KIND = ACCOUNT_CONSTANTS.COMMITMENT_KIND;
     const { MONEY_EPSILON } = DOMAIN;
-    const { state, D, h, $, money, moneyCur, num, sum, esc, rate, accountCurrency, nameOf, cls, userOpts, accOpts, targetOpts, curOpts, sRow, sCalc, sCol, field, seg, refreshExchangeRates, exchangeRates, bento, tile, head, kpiTile, txIcon, liv, itemList, expandable, totalsEl } = context;
+    const { state, D, h, $, money, moneyCur, num, sum, esc, rate, accountCurrency, nameOf, cls, userOpts, accOpts, targetOpts, curOpts, sRow, sCalc, sCol, field, seg, bento, tile, head, kpiTile, txIcon, liv, itemList, expandable, totalsEl } = context;
 
     /* ---------- Shared-state reads and derived values ---------- */
     /**
@@ -254,43 +254,13 @@
       if (countAccounts(DOMAIN.FILTER_NONE)) {
         filterItems.push([DOMAIN.FILTER_NONE, 'No user', countAccounts(DOMAIN.FILTER_NONE)]);
       }
-      const fxInput = (key, label) => {
-        const input = h('input', {
-          type: 'number',
-          step: 'any',
-          value: state.fx[key],
-          'aria-label': label
-        });
-        input.addEventListener('input', () => actions.updateExchangeRate(key, input));
-        return h('label', {}, label, input);
-      };
-
       const filter = seg(
         filterItems,
         selectedFilter,
         actions.setAccountFilter,
         'Filter by user'
       );
-      const exchangeRateControls = h(
-        'div',
-        { class: 'fx' },
-        fxInput('php', 'PHP per 1 NZD'),
-        fxInput('usd', 'NZD per 1 USD'),
-        h('button', {
-          id: 'fx-refresh',
-          class: 'btn plain',
-          type: 'button',
-          onclick: () => refreshExchangeRates()
-        }, 'Refresh exchange rates'),
-        h('span', {
-          id: 'fx-status',
-          class: 'fx-status',
-          role: 'status',
-          'aria-live': 'polite'
-        }, exchangeRates.statusText),
-        h('span', { class: 'fx-status' }, 'Rates are the provider’s latest published values (typically updated daily), not streaming market quotes.')
-      );
-      el.append(h('div', { class: 'toolbar' }, filter, exchangeRateControls));
+      el.append(h('div', { class: 'toolbar' }, filter));
 
       const selectedTotal = key => () => {
         const accounts = service.visibleAccounts()

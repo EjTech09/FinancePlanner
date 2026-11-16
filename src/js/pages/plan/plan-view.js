@@ -12,21 +12,31 @@
     const PLAN_CONSTANTS = window.HouseholdPlannerConstants.plan;
     const DEFAULT_CURRENCY = window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY;
     const { MONEY_EPSILON } = window.HouseholdPlannerConstants.domain;
-    const { state, D, sum, money, num, h, $, head, tile, bento, CATS, field, sRow, sCalc, sCol, userOpts, curOpts, rate, accountCurrency, nameOf, cls, esc, fmtDate, liv, itemList, expandable, totalsEl } = context;
+    const { state, D, sum, money, num, toMonthlyAmount, h, $, head, tile, bento, CATS, field, sRow, sCalc, sCol, userOpts, curOpts, rate, accountCurrency, nameOf, cls, esc, fmtDate, liv, itemList, expandable, totalsEl } = context;
     const { pctOf, byPriority } = service;
     const period = () => PLAN_CONSTANTS.PERIODS.find(([value]) => value === state.planPeriod) ||
       PLAN_CONSTANTS.PERIODS.find(([value]) => value === PLAN_CONSTANTS.DEFAULT_PERIOD);
+    const frequency = item => PLAN_CONSTANTS.PERIODS.find(([value]) => value === item.frequency) ||
+      PLAN_CONSTANTS.PERIODS.find(([value]) => value === PLAN_CONSTANTS.DEFAULT_PERIOD);
     const periodAmount = amount => num(amount) * period()[2];
     const periodUnit = () => period()[3];
-    const periodField = (label, row, key) => {
-      const multiplier = period()[2];
-      const input = field(sCol(label, key, 'number', {
-        onChange: (_, next) => {
-          row[key] = next === '' ? '' : num(next) / multiplier;
-        }
-      }), row);
-      input.value = row[key] === '' ? '' : periodAmount(row[key]);
-      return input;
+    const frequencyUnit = item => frequency(item)[3];
+    const frequencyControl = (item, actions) => {
+      const select = h('select', { 'aria-label': 'Frequency' }, PLAN_CONSTANTS.PERIODS.map(
+        ([value, label]) => h('option', { value }, label)
+      ));
+      select.value = frequency(item)[0];
+      select.addEventListener('change', () => actions.setFrequency(item, select.value));
+      return select;
+    };
+    const frequencyAmountRow = (item, key, label, suffix = '') => {
+      const input = field(sCol(label, key, 'number'), item);
+      const amountLabel = liv(() => {
+        const text = label + ' per ' + frequencyUnit(item) + suffix;
+        input.setAttribute('aria-label', text);
+        return text;
+      });
+      return sRow(amountLabel, input);
     };
 
     /* ---------- Shared-state reads and derived values ---------- */
@@ -188,6 +198,7 @@
       const nameKey = kind === 'income' ? 'source' : 'name';
       const itemTitle = kind === 'income' ? 'income' : 'expense';
       const amountInNZD = () => num(row.amount) * rate(row.currency || DEFAULT_CURRENCY);
+      const monthlyAmountInNZD = () => toMonthlyAmount(amountInNZD(), row.frequency);
       const isForeignCurrency = () => row.currency && row.currency !== DEFAULT_CURRENCY;
       const item = h('div', { class: 'acc-item', 'data-id': row.id });
       const header = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
@@ -195,13 +206,13 @@
         h('span', { class: 'tx-main' },
           liv(() => esc(row[nameKey] || labels.untitled), 'b'),
           liv(() => esc(nameOf('users', row.user) || 'No user'), 'small'),
-          liv(() => `<span class="pill neu">${pctOf(amountInNZD(), D().income).toFixed(0)}% of income</span>`, 'span')
+          liv(() => `<span class="pill neu">${pctOf(monthlyAmountInNZD(), D().income).toFixed(0)}% of income</span>`, 'span')
         ),
         h('span', { class: 'tx-amt' },
-          liv(() => money(periodAmount(amountInNZD())), 'b'),
+          liv(() => money(amountInNZD()), 'b'),
           liv(() => isForeignCurrency()
-            ? `${esc(row.currency)} ${periodAmount(row.amount).toLocaleString('en-NZ', { maximumFractionDigits: 2 })}`
-            : 'per ' + periodUnit(), 'small')
+            ? `${esc(row.currency)} ${num(row.amount).toLocaleString('en-NZ', { maximumFractionDigits: 2 })}`
+            : 'per ' + frequencyUnit(row), 'small')
         ),
         h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
       );
@@ -212,15 +223,19 @@
       if (labels.currency) {
         editable.push(sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), row)));
       }
-      editable.push(sRow(labels.amount, periodField(labels.amount, row, 'amount')));
+      editable.push(sRow('Frequency', frequencyControl(row, actions)));
+      editable.push(frequencyAmountRow(row, 'amount', 'Amount', labels.currency ? '' : ' (NZD)'));
 
       const insights = [];
-      if (labels.currency) insights.push(sCalc('Amount in NZD per ' + periodUnit(), () => money(periodAmount(amountInNZD()))));
-      insights.push(sCalc('Share of income', () => pctOf(amountInNZD(), D().income).toFixed(1) + '%'));
+      if (labels.currency) insights.push(sCalc(
+        liv(() => 'Amount in NZD per ' + frequencyUnit(row)),
+        () => money(amountInNZD())
+      ));
+      insights.push(sCalc('Share of income', () => pctOf(monthlyAmountInNZD(), D().income).toFixed(1) + '%'));
       if (shareOfSection) {
         insights.push(sCalc(
           'Share of ' + labels.section,
-          () => pctOf(amountInNZD(), D().budgeted[kind]).toFixed(1) + '%'
+          () => pctOf(monthlyAmountInNZD(), D().budgeted[kind]).toFixed(1) + '%'
         ));
       }
 
@@ -228,7 +243,7 @@
         h('div', { class: 'fgroup' }, editable),
         labels.currency
           ? liv(() => isForeignCurrency()
-            ? 'Converted to NZD using the exchange rates on the Accounts page.'
+            ? 'Converted to NZD using the exchange rates on the People and data page.'
             : '', 'p', 'hint')
           : null,
         h('div', { class: 'fgroup' }, insights),
@@ -243,15 +258,13 @@
       field: 'Source',
       ph: 'e.g. Salary',
       del: 'Delete income',
-      currency: true,
-      amount: 'Amount per ' + periodUnit()
+      currency: true
     }, 'income', false, actions);
     const expItem = (row, actions) => moneyItem(row, row.category, {
       untitled: 'Untitled expense',
       field: 'Expense',
       ph: 'e.g. Groceries',
       del: 'Delete expense',
-      amount: 'Amount per ' + periodUnit() + ' (NZD)',
       section: row.category === 'essential' ? 'essential expenses' : 'discretionary expenses'
     }, 'expenses', true, actions);
     function incomeBody(actions) {
@@ -325,8 +338,8 @@
           }, 'span')
         ),
         h('span', { class: 'tx-amt' },
-          liv(() => money(periodAmount(goal.monthly)), 'b'),
-          h('small', {}, 'per ' + periodUnit())
+          liv(() => money(num(goal.monthly)), 'b'),
+          h('small', {}, 'per ' + frequencyUnit(goal))
         ),
         h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
       );
@@ -336,7 +349,8 @@
           sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), goal)),
           sRow('Target (NZD)', field(sCol('Target (NZD)', 'target', 'number'), goal)),
           sRow('Target date', field(sCol('Target date', 'date', 'date'), goal)),
-          sRow('Amount per ' + periodUnit() + ' (NZD)', periodField('Amount per ' + periodUnit() + ' (NZD)', goal, 'monthly'))
+          sRow('Frequency', frequencyControl(goal, actions)),
+          frequencyAmountRow(goal, 'monthly', 'Amount', ' (NZD)')
         ),
         h('div', { class: 'fgroup' },
           sCalc('Saved so far', () => {
@@ -404,8 +418,8 @@
           }, 'span')
         ),
         h('span', { class: 'tx-amt' },
-          liv(() => money(periodAmount(debt.monthly)), 'b'),
-          h('small', {}, 'per ' + periodUnit())
+          liv(() => money(num(debt.monthly)), 'b'),
+          h('small', {}, 'per ' + frequencyUnit(debt))
         ),
         h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
       );
@@ -418,7 +432,8 @@
           sRow('Due date', field(sCol('Due date', 'due', 'date'), debt)),
           sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), debt)),
           sRow('Starting balance', field(sCol('Starting balance', 'balance', 'number'), debt)),
-          sRow('Payment per ' + periodUnit() + ' (NZD)', periodField('Payment per ' + periodUnit() + ' (NZD)', debt, 'monthly'))
+          sRow('Frequency', frequencyControl(debt, actions)),
+          frequencyAmountRow(debt, 'monthly', 'Payment', ' (NZD)')
         ),
         h('div', { class: 'fgroup' },
           sCalc('Balance (NZD)', () => money(debtSummary().bal)),
@@ -454,7 +469,7 @@
         totalsEl(() => [
           ['Target total', money(sum(state.goals, 'target'))],
           ['Saved so far', money(sum(Object.values(D().goals), 'saved'))],
-          ['Total per ' + periodUnit(), money(periodAmount(sum(state.goals, 'monthly')))]
+          ['Total per ' + periodUnit(), money(periodAmount(D().budgeted.savings))]
         ]),
         h('button', { class: 'add', type: 'button', onclick: () => actions.addGoal(list) }, 'Add goal')
       );
@@ -476,7 +491,7 @@
             ['Owed (NZD)', money(summary.debtTotal)],
             ['Covered', money(summary.debtFunded)],
             ['Still to find', money(summary.debtUnfunded)],
-            ['Total per ' + periodUnit(), money(periodAmount(sum(state.debts, 'monthly')))]
+            ['Total per ' + periodUnit(), money(periodAmount(summary.budgeted.debt))]
           ];
         }),
         h('button', { class: 'add', type: 'button', onclick: () => actions.addDebt(list) }, 'Add debt')

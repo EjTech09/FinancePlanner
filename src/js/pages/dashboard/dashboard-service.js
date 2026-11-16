@@ -25,7 +25,7 @@
       ).length;
       const goalScale = Math.max(
         MIN_SCALE,
-        ...state.goals.map(goal => Math.max(num(goal.monthly), R.goals[goal.id].required || 0))
+        ...state.goals.map(goal => Math.max(R.goals[goal.id].monthlyPayment, R.goals[goal.id].required || 0))
       );
       const debtScale = Math.max(
         MIN_SCALE,

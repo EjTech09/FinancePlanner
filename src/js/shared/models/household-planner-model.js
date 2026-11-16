@@ -9,18 +9,24 @@
  */
 const CURRENCY = window.HouseholdPlannerConstants.domain.CURRENCY;
 const MONEY_EPSILON = window.HouseholdPlannerConstants.domain.MONEY_EPSILON;
+const PLAN_CONSTANTS = window.HouseholdPlannerConstants.plan;
 const toNumber = value => {
   if (value === '' || value == null || !isFinite(+value)) return 0;
   return +value;
+};
+const toMonthlyAmount = (amount, frequency) => {
+  const period = PLAN_CONSTANTS.PERIODS.find(([value]) => value === frequency) ||
+    PLAN_CONSTANTS.PERIODS.find(([value]) => value === PLAN_CONSTANTS.DEFAULT_PERIOD);
+  return toNumber(amount) / period[2];
 };
 const sumBy = (items, selector) => items.reduce((total, item) => {
   const value = typeof selector === 'function' ? selector(item) : item[selector];
   return total + toNumber(value);
 }, 0);
 const currencyRate = (currency, rates) => {
-  if (currency === CURRENCY.PHP) return 1 / (toNumber(rates.php) || 1);
-  if (currency === CURRENCY.USD) return toNumber(rates.usd);
-  return 1;
+  if (currency === CURRENCY.BASE) return 1;
+  const rate = toNumber(rates && rates.rates && rates.rates[currency]);
+  return rate > 0 ? rate : 0;
 };
 
 function calculatePlan({
@@ -60,6 +66,7 @@ function calculatePlan({
   else status = 'Behind by ' + (monthsToPayOff - monthsUntilDue) + ' mo';
 
   return {
+    monthlyPayment,
     remaining,
     months: monthsToPayOff,
     until: monthsUntilDue,
@@ -108,7 +115,7 @@ function calculateSummary(state, asOfDate) {
 
   summary.income = sumBy(
     state.income,
-    income => toNumber(income.amount) * rateFor(income.currency)
+    income => toMonthlyAmount(income.amount, income.frequency) * rateFor(income.currency)
   );
 
   for (const account of state.accounts) {
@@ -151,17 +158,18 @@ function calculateSummary(state, asOfDate) {
   for (const goal of state.goals) {
     const saved = committedForTarget('goal:' + goal.id);
     const hasTarget = goal.target !== '' && goal.target != null;
+    const monthlyPayment = toMonthlyAmount(goal.monthly, goal.frequency);
     const progress = hasTarget
       ? calculatePlan({
         balance: toNumber(goal.target),
         committed: saved,
-        monthly: goal.monthly,
+        monthly: monthlyPayment,
         dueDate: goal.date,
         asOfDate,
         noPaymentStatus: 'No contribution',
         completedStatus: 'Reached'
       })
-      : { remaining: 0, status: 'Set a target' };
+      : { remaining: 0, status: 'Set a target', monthlyPayment };
 
     summary.goals[goal.id] = { saved, hasTarget, ...progress };
   }
@@ -187,7 +195,7 @@ function calculateSummary(state, asOfDate) {
     const progress = calculatePlan({
       balance,
       committed: funded,
-      monthly: debt.monthly,
+      monthly: toMonthlyAmount(debt.monthly, debt.frequency),
       dueDate: debt.due,
       asOfDate,
       noPaymentStatus: 'No payment set',
@@ -209,13 +217,13 @@ function calculateSummary(state, asOfDate) {
   summary.budgeted = {
     essential: sumBy(
       state.expenses.filter(expense => expense.category === 'essential'),
-      'amount'
+      expense => toMonthlyAmount(expense.amount, expense.frequency)
     ),
-    savings: sumBy(state.goals, 'monthly'),
-    debt: sumBy(state.debts, 'monthly'),
+    savings: sumBy(state.goals, goal => toMonthlyAmount(goal.monthly, goal.frequency)),
+    debt: sumBy(state.debts, debt => toMonthlyAmount(debt.monthly, debt.frequency)),
     discretionary: sumBy(
       state.expenses.filter(expense => expense.category === 'discretionary'),
-      'amount'
+      expense => toMonthlyAmount(expense.amount, expense.frequency)
     )
   };
 
@@ -233,6 +241,7 @@ function calculateSummary(state, asOfDate) {
 
 window.HouseholdPlannerModel = Object.freeze({
   num: toNumber,
+  toMonthlyAmount,
   sum: sumBy,
   currencyRate,
   compute: calculateSummary

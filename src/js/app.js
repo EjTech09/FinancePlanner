@@ -1,5 +1,6 @@
 const {
   num,
+  toMonthlyAmount,
   sum,
   currencyRate,
   compute
@@ -110,7 +111,10 @@ const targetOpts = () => [
     items: state.goals.map(goal => ({ v: 'goal:' + goal.id, t: goal.name || '(unnamed)' }))
   }
 ];
-const curOpts = () => DOMAIN_CONSTANTS.CURRENCIES.map(currency => ({ v: currency, t: currency }));
+const curOpts = () => [
+  DOMAIN_CONSTANTS.DEFAULT_CURRENCY,
+  ...Object.keys(state.fx.rates)
+].map(currency => ({ v: currency, t: currency }));
 
 /* ---------- table plumbing ---------- */
 function commit() {
@@ -249,7 +253,7 @@ const replaceState = nextState => {
 };
 const pageContext = {
   state, D, CATS, cls, nameOf, userOpts, accOpts, targetOpts, curOpts,
-  rate, accountCurrency, num, sum, money, moneyCur, esc, fmtDate, asOf,
+  rate, accountCurrency, num, toMonthlyAmount, sum, money, moneyCur, esc, fmtDate, asOf,
   h, $, $$, uid, calcEl, icon, tile, head, bento, seg, kpiTile,
   tableView, field, detach, commit, save, render, hasData, startImport,
   persistence, themeSeg, markDirty, replaceState, setLegacy,

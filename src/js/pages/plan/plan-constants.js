@@ -8,7 +8,8 @@
       Object.freeze(['weekly', 'Weekly', 12 / 52, 'week']),
       Object.freeze(['fortnightly', 'Fortnightly', 12 / 26, 'fortnight']),
       Object.freeze(['monthly', 'Monthly', 1, 'month']),
-      Object.freeze(['annually', 'Annually', 12, 'year'])
+      Object.freeze(['annually', 'Annually', 12, 'year']),
+      Object.freeze(['quarterly', 'Quarterly', 3, 'quarter'])
     ]),
     KIND_COLOR: Object.freeze({
       income: '--c2',

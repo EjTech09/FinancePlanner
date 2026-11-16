@@ -22,19 +22,30 @@
     const setPeriod = period => {
       state.planPeriod = period;
     };
+    const setFrequency = (item, frequency) => {
+      item.frequency = frequency;
+    };
     const createIncome = () => {
       const income = {
         id: uid(),
         source: '',
         user: '',
         amount: '',
+        frequency: state.planPeriod,
         currency: DEFAULT_CURRENCY
       };
       state.income.push(income);
       return income;
     };
     const createExpense = category => {
-      const expense = { id: uid(), name: '', category, user: '', amount: '' };
+      const expense = {
+        id: uid(),
+        name: '',
+        category,
+        user: '',
+        amount: '',
+        frequency: state.planPeriod
+      };
       state.expenses.push(expense);
       return expense;
     };
@@ -47,7 +58,15 @@
       }
     };
     const createGoal = () => {
-      const goal = { id: uid(), name: '', user: '', target: '', date: '', monthly: '' };
+      const goal = {
+        id: uid(),
+        name: '',
+        user: '',
+        target: '',
+        date: '',
+        monthly: '',
+        frequency: state.planPeriod
+      };
       state.goals.push(goal);
       return goal;
     };
@@ -65,7 +84,8 @@
         due: '',
         currency: DEFAULT_CURRENCY,
         balance: '',
-        monthly: ''
+        monthly: '',
+        frequency: state.planPeriod
       };
       state.debts.push(debt);
       return debt;
@@ -83,6 +103,7 @@
       byPriority,
       updateAllocation,
       setPeriod,
+      setFrequency,
       createIncome,
       createExpense,
       deleteMoneyItem,

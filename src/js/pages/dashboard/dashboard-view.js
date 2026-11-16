@@ -31,14 +31,14 @@
       const goalRows = state.goals.map(g => {
         const r = R.goals[g.id];
         return `<div class="row"><div class="top"><span class="name">${esc(g.name)}</span><span class="pill ${cls(r.status)}">${esc(r.status)}</span></div>
-          <div class="meta">${money(num(g.monthly), 0)} a month${r.required != null ? ', ' + money(r.required, 0) + ' needed for the date' : ''}. Saved ${money(r.saved, 0)} of ${g.target === '' ? 'no target' : money(num(g.target), 0)}.</div>
-          <div class="bar thin"><i style="width:${num(g.monthly) / goalScale * 100}%;background:var(--c1)"></i></div>
+          <div class="meta">${money(r.monthlyPayment, 0)} a month${r.required != null ? ', ' + money(r.required, 0) + ' needed for the date' : ''}. Saved ${money(r.saved, 0)} of ${g.target === '' ? 'no target' : money(num(g.target), 0)}.</div>
+          <div class="bar thin"><i style="width:${r.monthlyPayment / goalScale * 100}%;background:var(--c1)"></i></div>
           <div class="bar thin"><i style="width:${(r.required || 0) / goalScale * 100}%;background:var(--c3)"></i></div></div>`;
       }).join('') || '<p class="empty">No goals yet. Add one on the Plan page.</p>';
       const debtRows = state.debts.slice().sort((a, b) => num(a.priority) - num(b.priority)).map(debt => {
         const progress = R.debts[debt.id];
         return `<div class="row"><div class="top"><span class="name">${esc(debt.name)}</span><span class="pill ${cls(progress.status)}">${esc(progress.status)}</span></div>
-          <div class="meta">${money(progress.bal, 0)} owed. ${money(progress.funded, 0)} covered, ${money(progress.unfunded, 0)} still to find. ${num(debt.monthly) > 0 ? money(num(debt.monthly), 0) + ' a month.' : 'No monthly payment yet.'}</div>
+          <div class="meta">${money(progress.bal, 0)} owed. ${money(progress.funded, 0)} covered, ${money(progress.unfunded, 0)} still to find. ${progress.monthlyPayment > 0 ? money(progress.monthlyPayment, 0) + ' a month.' : 'No monthly payment yet.'}</div>
           <div class="bar"><i style="width:${progress.funded / debtScale * 100}%;background:var(--c2)"></i><i style="width:${progress.unfunded / debtScale * 100}%;background:var(--c3)"></i></div></div>`;
       }).join('') || '<p class="empty">No debts recorded.</p>';
       const personRows = people.map(person => `<div class="row"><div class="top"><span class="name">${esc(person.name)}</span><span class="meta">${money(person.net, 0)} after bills</span></div>

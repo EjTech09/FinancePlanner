@@ -5,7 +5,7 @@
   window.HouseholdPlannerPages.dataService = context => {
     const PAGE_ID = window.HouseholdPlannerConstants.app.PAGE_ID;
     const {
-      state, persistence, replaceState, setLegacy, markDirty, uid
+      state, persistence, replaceState, setLegacy, markDirty, uid, exchangeRates
     } = context;
 
     const storageMessage = () => persistence.available
@@ -34,6 +34,54 @@
       });
     };
 
-    return { storageMessage, clearData, addTransactionCategory, removeTransactionCategory };
+    const currencyUsage = currency => [
+      ...state.accounts.filter(item => item.currency === currency),
+      ...state.income.filter(item => item.currency === currency),
+      ...state.debts.filter(item => item.currency === currency)
+    ].length;
+    const addExchangeRate = (currency, value) => {
+      const code = (currency || '').trim().toUpperCase();
+      const rate = Number(value);
+      if (!/^[A-Z]{3}$/.test(code) ||
+        code === window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY ||
+        Object.prototype.hasOwnProperty.call(state.fx.rates, code) ||
+        !Number.isFinite(rate) || rate <= 0) {
+        return false;
+      }
+      state.fx.rates[code] = rate;
+      state.fx.updatedAt[code] = null;
+      exchangeRates.setStatus(`Using the manually entered ${code} rate.`);
+      return true;
+    };
+    const updateExchangeRate = (currency, input) => {
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value <= 0) {
+        exchangeRates.setStatus(`Enter a rate greater than zero for ${currency}; the saved rate is unchanged.`);
+        return false;
+      }
+      state.fx.rates[currency] = value;
+      state.fx.updatedAt[currency] = null;
+      exchangeRates.setStatus(`Using the manually entered ${currency} rate.`);
+      return true;
+    };
+    const removeExchangeRate = currency => {
+      if (!Object.prototype.hasOwnProperty.call(state.fx.rates, currency) ||
+        currencyUsage(currency)) return false;
+      delete state.fx.rates[currency];
+      delete state.fx.updatedAt[currency];
+      exchangeRates.setStatus(`Removed the ${currency} exchange rate.`);
+      return true;
+    };
+
+    return {
+      storageMessage,
+      clearData,
+      addTransactionCategory,
+      removeTransactionCategory,
+      currencyUsage,
+      addExchangeRate,
+      updateExchangeRate,
+      removeExchangeRate
+    };
   };
 })();

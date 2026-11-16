@@ -23,10 +23,10 @@
       accounts: [],
       transactionCategories: window.HouseholdPlannerConstants.transactions
         .DEFAULT_CATEGORIES.map(category => Object.assign({}, category)),
-      fx: Object.assign({}, APP_CONSTANTS.DEFAULT_FX_RATES, {
-        phpUpdatedAt: null,
-        usdUpdatedAt: null
-      }),
+      fx: {
+        rates: Object.assign({}, APP_CONSTANTS.DEFAULT_FX_RATES),
+        updatedAt: { PHP: null, USD: null }
+      },
       commitments: [],
       transactions: [],
       ui: {
@@ -55,15 +55,52 @@
       if (!Array.isArray(data[collection])) data[collection] = [];
     }
 
+    const normalizeFrequency = item => {
+      if (!window.HouseholdPlannerConstants.plan.PERIODS.some(([period]) => period === item.frequency)) {
+        item.frequency = window.HouseholdPlannerConstants.plan.DEFAULT_PERIOD;
+      }
+    };
     data.income.forEach(income => {
       if (!income.currency) income.currency = DOMAIN_CONSTANTS.DEFAULT_CURRENCY;
+      normalizeFrequency(income);
     });
+    ['expenses', 'goals', 'debts'].forEach(collection =>
+      data[collection].forEach(normalizeFrequency)
+    );
 
     data.alloc = Object.assign({}, defaults.alloc, data.alloc);
     if (data.ui && (data.ui.tab === 'goals' || data.ui.tab === 'debts')) {
       data.ui.tab = 'plan';
     }
-    data.fx = Object.assign({}, defaults.fx, data.fx);
+    const savedFx = data.fx || {};
+    if (savedFx.rates && typeof savedFx.rates === 'object' && !Array.isArray(savedFx.rates)) {
+      const rates = {};
+      Object.entries(savedFx.rates).forEach(([currency, value]) => {
+        const code = currency.toUpperCase();
+        const rate = Number(value);
+        if (code !== DOMAIN_CONSTANTS.DEFAULT_CURRENCY &&
+          /^[A-Z]{3}$/.test(code) && Number.isFinite(rate) && rate > 0) {
+          rates[code] = rate;
+        }
+      });
+      data.fx = {
+        rates,
+        updatedAt: Object.assign({}, savedFx.updatedAt)
+      };
+    } else {
+      const phpPerNzd = num(savedFx.php) || 1 / defaults.fx.rates.PHP;
+      const rates = Object.assign({}, defaults.fx.rates, {
+        PHP: 1 / phpPerNzd,
+        USD: num(savedFx.usd) || defaults.fx.rates.USD
+      });
+      data.fx = {
+        rates,
+        updatedAt: {
+          PHP: savedFx.phpUpdatedAt || null,
+          USD: savedFx.usdUpdatedAt || null
+        }
+      };
+    }
     data.ui = Object.assign({}, defaults.ui, data.ui);
 
     if (dataBuild < 3) {

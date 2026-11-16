@@ -22,8 +22,8 @@
       discretionary: 20
     }),
     DEFAULT_FX_RATES: Object.freeze({
-      php: 36,
-      usd: 1.8
+      PHP: 1 / 36,
+      USD: 1.8
     }),
     BUDGET_CATEGORIES: freezeRows([
       ['essential', 'Essential expenses', 'c1'],

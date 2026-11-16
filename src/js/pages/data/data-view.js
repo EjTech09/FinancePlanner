@@ -10,7 +10,9 @@
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.dataView = (context, service) => {
     const DATA_CONSTANTS = window.HouseholdPlannerConstants.data;
-    const { state, h, head, tableView, tile, themeSeg, bento, startImport } = context;
+    const {
+      state, h, head, tableView, tile, themeSeg, bento, startImport, exchangeRates
+    } = context;
 
     const dataView = actions => {
       const el = h('div', {}, head('People and data', service.storageMessage()));
@@ -76,6 +78,87 @@
         }, 'Add category')),
         categoryList
       );
+      const exchangeRateCode = h('input', {
+        type: 'text',
+        maxlength: '3',
+        placeholder: 'e.g. JPY',
+        'aria-label': 'New currency code',
+        autocomplete: 'off'
+      });
+      const exchangeRateValue = h('input', {
+        type: 'number',
+        min: '0',
+        step: 'any',
+        placeholder: 'e.g. 0.009',
+        'aria-label': 'NZD per 1 new currency'
+      });
+      const exchangeRateList = h(
+        'div',
+        { class: 'fx-list' },
+        Object.keys(state.fx.rates).map(currency => {
+          const input = h('input', {
+            type: 'number',
+            min: '0',
+            step: 'any',
+            value: state.fx.rates[currency],
+            'aria-label': `NZD per 1 ${currency}`,
+            'data-fx-currency': currency
+          });
+          input.addEventListener('input', () => actions.updateExchangeRate(currency, input));
+          const inUse = service.currencyUsage(currency) > 0;
+          return h(
+            'div',
+            { class: 'fx-row' },
+            h('span', { class: 'fx-currency' }, currency),
+            h('label', {}, `NZD per 1 ${currency}`, input),
+            h('button', {
+              class: 'btn danger',
+              type: 'button',
+              disabled: inUse,
+              title: inUse ? 'Reassign every record using this currency first.' : false,
+              'aria-label': `Remove ${currency} exchange rate`,
+              onclick: () => actions.removeExchangeRate(currency)
+            }, 'Remove')
+          );
+        })
+      );
+      const rateCodeAndValue = h('div', { class: 'fx-add' },
+        h('label', {}, 'Currency code', exchangeRateCode),
+        h('label', {}, 'NZD per 1 unit', exchangeRateValue),
+        h('button', {
+          class: 'btn',
+          type: 'button',
+          onclick: () => {
+            if (actions.addExchangeRate(exchangeRateCode.value, exchangeRateValue.value)) {
+              exchangeRateCode.value = '';
+              exchangeRateValue.value = '';
+            }
+          }
+        }, 'Add exchange rate')
+      );
+      const exchangeRatesTile = tile(
+        12,
+        {},
+        h('h2', {}, 'Exchange rates'),
+        h('p', { class: 'sub' }, 'NZD is the base currency. Add a three-letter currency code and how many NZD one unit is worth. Rates are used throughout accounts, income, and debts. Reassign existing records before removing a rate.'),
+        exchangeRateList,
+        rateCodeAndValue,
+        h('div', { class: 'fx-actions' },
+          h('button', {
+            id: 'fx-refresh',
+            class: 'btn plain',
+            type: 'button',
+            onclick: () => actions.refreshExchangeRates()
+          }, 'Refresh PHP and USD rates'),
+          h('span', {
+            id: 'fx-status',
+            class: 'fx-status',
+            role: 'status',
+            'aria-live': 'polite'
+          }, exchangeRates.statusText),
+          h('span', { class: 'fx-status' }, 'Provider rates are the latest published values (typically updated daily), not streaming market quotes. Other currencies are set manually.')
+        )
+      );
       const dataTile = tile(
         12,
         {},
@@ -91,6 +174,7 @@
       );
       el.append(bento(
         peopleTable,
+        exchangeRatesTile,
         categoriesTile,
         appearanceTile,
         dataTile
