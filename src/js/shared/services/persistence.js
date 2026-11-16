@@ -20,6 +20,8 @@
       goals: [],
       debts: [],
       accounts: [],
+      transactionCategories: window.HouseholdPlannerConstants.transactions
+        .DEFAULT_CATEGORIES.map(category => Object.assign({}, category)),
       fx: Object.assign({}, APP_CONSTANTS.DEFAULT_FX_RATES, {
         phpUpdatedAt: null,
         usdUpdatedAt: null
@@ -43,7 +45,7 @@
 
     const collections = [
       'users', 'income', 'expenses', 'goals',
-      'debts', 'accounts', 'commitments', 'transactions'
+      'debts', 'accounts', 'commitments', 'transactions', 'transactionCategories'
     ];
     for (const collection of collections) {
       if (!Array.isArray(data[collection])) data[collection] = [];

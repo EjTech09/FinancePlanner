@@ -76,7 +76,7 @@
             onChange: (oldCurrency, newCurrency) =>
               service.convertAccountCommitments(account.id, oldCurrency, newCurrency)
           }), account)),
-          sRow('Balance', field(sCol('Balance', 'balance', 'number'), account)),
+          sRow('Opening balance', field(sCol('Opening balance', 'balance', 'number'), account)),
           sRow('Liabilities due', field(sCol('Liabilities due', 'liabilities', 'number'), account))
         ),
         h('div', { class: 'fgroup' },
@@ -147,7 +147,10 @@
           liv(() => `<span class="pill neu">${kindLabels[kind()]}</span>`, 'span')
         ),
         h('span', { class: 'tx-amt' },
-          liv(() => moneyCur(num(c.amount), accountCurrency(c.account)), 'b'),
+          liv(() => moneyCur(
+            (D().commitments[c.id] || {}).amount ?? num(c.amount),
+            accountCurrency(c.account)
+          ), 'b'),
           h('small', {}, 'set aside')
         ),
         h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
@@ -178,7 +181,7 @@
         12,
         {},
         h('h2', {}, 'Account balances'),
-        h('p', { class: 'sub' }, 'Tap an account to see and edit everything. Liabilities are bills due soon. Set aside is money already promised, listed in the next section.'),
+        h('p', { class: 'sub' }, 'Tap an account to see and edit everything. Opening balances are adjusted by transactions. Liabilities are bills due soon. Set aside is money already promised, listed in the next section.'),
         h('div', { class: 'li-wrap' }, list, empty),
         totalsEl(() => {
           const accounts = service.visibleAccounts()
@@ -207,9 +210,9 @@
         h('div', { class: 'li-wrap' }, list, empty),
         totalsEl(() => {
           const commitments = state.commitments.filter(service.comMatch);
-          const totalInNZD = sum(
-            commitments,
-            commitment => num(commitment.amount) * rate(accountCurrency(commitment.account))
+          const totalInNZD = sum(commitments, commitment =>
+            ((D().commitments[commitment.id] || {}).amount ?? num(commitment.amount)) *
+            rate(accountCurrency(commitment.account))
           );
           return [
             ['Total set aside (NZD)', money(totalInNZD)],
@@ -233,7 +236,7 @@
       const selectedFilter = service.accFilter();
       const el = h('div', {}, head(
         'Accounts',
-        'Balances stay in each account\u2019s own currency and are converted to NZD with the rates below. Use the filter to look at one person at a time.'
+        'Balances include transaction activity and are converted to NZD with the rates below. Opening balances are the starting point. Use the filter to look at one person at a time.'
       ));
       const countAccounts = userId => state.accounts.filter(account => {
         if (userId === DOMAIN.FILTER_ALL) return true;

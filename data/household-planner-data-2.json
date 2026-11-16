@@ -1,0 +1,507 @@
+{
+  "users": [
+    {
+      "id": "imwhznmxe0",
+      "name": "Ejay",
+      "type": "Individual"
+    },
+    {
+      "id": "imwhznmxe1",
+      "name": "Angela",
+      "type": "Individual"
+    },
+    {
+      "id": "imwhznmxe2",
+      "name": "Joint",
+      "type": "Joint"
+    }
+  ],
+  "income": [
+    {
+      "id": "imwhznmxfp",
+      "source": "Salary / Wages",
+      "user": "imwhznmxe1",
+      "amount": 3500,
+      "currency": "NZD"
+    },
+    {
+      "id": "imwhznmxfq",
+      "source": "Ejay - Wise NZD",
+      "user": "imwhznmxe0",
+      "amount": 1667,
+      "currency": "NZD"
+    },
+    {
+      "id": "imwhznmxfr",
+      "source": "Other / Freelance",
+      "user": "imwhznmxe2",
+      "amount": 0,
+      "currency": "NZD"
+    }
+  ],
+  "alloc": {
+    "essential": 53,
+    "savings": 27,
+    "debt": 13,
+    "discretionary": 7
+  },
+  "expenses": [
+    {
+      "id": "imwhznmxfs",
+      "name": "Rent/Housing",
+      "category": "essential",
+      "user": "imwhznmxe2",
+      "amount": 1600
+    },
+    {
+      "id": "imwhznmxft",
+      "name": "Groceries",
+      "category": "essential",
+      "user": "imwhznmxe2",
+      "amount": 800
+    },
+    {
+      "id": "imwhznmxfu",
+      "name": "Utilities",
+      "category": "essential",
+      "user": "imwhznmxe2",
+      "amount": 0
+    },
+    {
+      "id": "imwhznmxfv",
+      "name": "Wifi",
+      "category": "essential",
+      "user": "imwhznmxe2",
+      "amount": 0
+    },
+    {
+      "id": "imwhznmxfw",
+      "name": "Mobile Data",
+      "category": "essential",
+      "user": "imwhznmxe2",
+      "amount": 62
+    },
+    {
+      "id": "imwhznmxfx",
+      "name": "Transportation",
+      "category": "essential",
+      "user": "imwhznmxe2",
+      "amount": 240
+    },
+    {
+      "id": "imwhznmxfy",
+      "name": "Eating out (example)",
+      "category": "discretionary",
+      "user": "imwhznmxe2",
+      "amount": 100
+    }
+  ],
+  "goals": [
+    {
+      "id": "imwhznmxfi",
+      "name": "Emergency Fund",
+      "user": "imwhznmxe2",
+      "target": 9000,
+      "date": "2028-04-01",
+      "monthly": 411.77
+    },
+    {
+      "id": "imwhznmxfj",
+      "name": "Car - downpayment",
+      "user": "imwhznmxe2",
+      "target": 22000,
+      "date": "2028-01-01",
+      "monthly": 700
+    },
+    {
+      "id": "imwhznmxfk",
+      "name": "House & Lot - downpayment",
+      "user": "imwhznmxe2",
+      "target": 205000,
+      "date": "2035-12-31",
+      "monthly": 280
+    }
+  ],
+  "debts": [
+    {
+      "id": "imwhznmxfl",
+      "name": "Tuition Fee",
+      "priority": 1,
+      "borrower": "imwhznmxe0",
+      "creditor": "Mamilo + Dadilo + Papa",
+      "due": "2027-04-01",
+      "currency": "NZD",
+      "balance": 34286.75,
+      "monthly": 671.71
+    },
+    {
+      "id": "imwhznmxfm",
+      "name": "Loan from Racelis",
+      "priority": 2,
+      "borrower": "imwhznmxe1",
+      "creditor": "Papa Med + Mama Ellen",
+      "due": "",
+      "currency": "PHP",
+      "balance": 400000,
+      "monthly": 0
+    },
+    {
+      "id": "imwhznmxfn",
+      "name": "NZ Show Money (Ejay)",
+      "priority": 3,
+      "borrower": "imwhznmxe0",
+      "creditor": "Angela",
+      "due": "2027-12-01",
+      "currency": "PHP",
+      "balance": 370000,
+      "monthly": 0
+    },
+    {
+      "id": "imwhznmxfo",
+      "name": "Joint Account Repayment",
+      "priority": 4,
+      "borrower": "imwhznmxe0",
+      "creditor": "Joint",
+      "due": "2027-06-01",
+      "currency": "PHP",
+      "balance": 150000,
+      "monthly": 0
+    }
+  ],
+  "accounts": [
+    {
+      "id": "imwhznmxe3",
+      "name": "Ejay - BPI Payroll",
+      "user": "imwhznmxe0",
+      "currency": "PHP",
+      "balance": 57248.47,
+      "liabilities": ""
+    },
+    {
+      "id": "imwhznmxe4",
+      "name": "Ejay - BPI Savings",
+      "user": "imwhznmxe0",
+      "currency": "PHP",
+      "balance": 7963.85,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxe5",
+      "name": "Ejay - Unionbank",
+      "user": "imwhznmxe0",
+      "currency": "PHP",
+      "balance": 62965.01,
+      "liabilities": ""
+    },
+    {
+      "id": "imwhznmxe6",
+      "name": "Ejay - Security Bank",
+      "user": "imwhznmxe0",
+      "currency": "PHP",
+      "balance": 26825.55,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxe7",
+      "name": "Ejay - Maya Savings",
+      "user": "imwhznmxe0",
+      "currency": "PHP",
+      "balance": 1760.26,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxe8",
+      "name": "Ejay - Wise NZD",
+      "user": "imwhznmxe0",
+      "currency": "NZD",
+      "balance": 29966.68,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxe9",
+      "name": "Ejay - Wise USD",
+      "user": "imwhznmxe0",
+      "currency": "USD",
+      "balance": 3462.58,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxea",
+      "name": "Ejay - NZD from Angela",
+      "user": "imwhznmxe0",
+      "currency": "NZD",
+      "balance": 2849.33,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxeb",
+      "name": "Angela - ANZ Payroll",
+      "user": "imwhznmxe1",
+      "currency": "NZD",
+      "balance": 11005.24,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxfc",
+      "name": "Angela - ANZ Savings",
+      "user": "imwhznmxe1",
+      "currency": "NZD",
+      "balance": 100.06,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxfd",
+      "name": "Angela - Wise NZD",
+      "user": "imwhznmxe1",
+      "currency": "NZD",
+      "balance": 5759.56,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxfe",
+      "name": "Angela - Kiwibank",
+      "user": "imwhznmxe1",
+      "currency": "NZD",
+      "balance": 100.14,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxff",
+      "name": "Angela - Kiwibank Savings",
+      "user": "imwhznmxe1",
+      "currency": "NZD",
+      "balance": 1131,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxfg",
+      "name": "Angela - CIMB",
+      "user": "imwhznmxe1",
+      "currency": "PHP",
+      "balance": 300639.14,
+      "liabilities": 0
+    },
+    {
+      "id": "imwhznmxfh",
+      "name": "Joint - BPI Joint",
+      "user": "imwhznmxe2",
+      "currency": "PHP",
+      "balance": 107963.85,
+      "liabilities": 0
+    }
+  ],
+  "fx": {
+    "php": 35.324607211196735,
+    "usd": 1.809242,
+    "phpUpdatedAt": "2026-11-16T00:02:31.000Z",
+    "usdUpdatedAt": "2026-11-16T00:02:31.000Z"
+  },
+  "commitments": [
+    {
+      "id": "imwhznmxfz",
+      "account": "imwhznmxe9",
+      "target": "debt:imwhznmxfl",
+      "label": "",
+      "amount": 3446.0368011323426
+    },
+    {
+      "id": "imwhznmxf10",
+      "account": "imwhznmxea",
+      "target": "debt:imwhznmxfl",
+      "label": "",
+      "amount": 2849.33
+    },
+    {
+      "id": "imwhznmxf11",
+      "account": "imwhznmxe8",
+      "target": "other",
+      "label": "Student living fund",
+      "amount": 27966.68
+    },
+    {
+      "id": "imwhznmxf12",
+      "account": "imwhznmxe8",
+      "target": "goal:imwhznmxfi",
+      "label": "",
+      "amount": 2000
+    },
+    {
+      "id": "imwhznmxf13",
+      "account": "imwhznmxfh",
+      "target": "debt:imwhznmxfm",
+      "label": "",
+      "amount": 21000
+    },
+    {
+      "id": "imwhznmxf14",
+      "account": "imwhznmxfg",
+      "target": "debt:imwhznmxfm",
+      "label": "",
+      "amount": 301483.83127229294
+    },
+    {
+      "id": "imwi27qaz0",
+      "account": "imwhznmxfd",
+      "target": "other",
+      "label": "Transfer to EJ",
+      "amount": 2849.33
+    },
+    {
+      "id": "imwi2nc2v0",
+      "account": "imwhznmxeb",
+      "target": "other",
+      "label": "Partnership Visa Application Fee",
+      "amount": 1630
+    },
+    {
+      "id": "imwi2nuwm1",
+      "account": "imwhznmxeb",
+      "target": "other",
+      "label": "Partnership Show Money",
+      "amount": 5000
+    },
+    {
+      "id": "imwi2oco32",
+      "account": "imwhznmxeb",
+      "target": "other",
+      "label": "Visitor Visa Application Fee",
+      "amount": 441
+    },
+    {
+      "id": "imwi2pg443",
+      "account": "imwhznmxeb",
+      "target": "other",
+      "label": "Visitor Visa Show Money",
+      "amount": 5000
+    },
+    {
+      "id": "imwi4bdtb0",
+      "account": "imwhznmxfh",
+      "target": "other",
+      "label": "KORU PH",
+      "amount": 79000
+    },
+    {
+      "id": "imwjqkys61",
+      "account": "imwhznmxe3",
+      "target": "other",
+      "label": "NZ Student Visa Processing",
+      "amount": 32000
+    },
+    {
+      "id": "imwjqrtmh2",
+      "account": "imwhznmxe3",
+      "target": "other",
+      "label": "Retainers",
+      "amount": 5250
+    },
+    {
+      "id": "imwjqsckm3",
+      "account": "imwhznmxe3",
+      "target": "other",
+      "label": "Travel Tax",
+      "amount": 1620
+    },
+    {
+      "id": "imwjqsneh4",
+      "account": "imwhznmxe3",
+      "target": "other",
+      "label": "UB Credit Card",
+      "amount": 22990
+    },
+    {
+      "id": "imwjqttzg5",
+      "account": "imwhznmxe5",
+      "target": "other",
+      "label": "Car Amortization Nov and Dec 2026 ",
+      "amount": 51932.72
+    }
+  ],
+  "transactions": [
+    {
+      "id": "imwhznmxf15",
+      "date": "2026-11-01",
+      "user": "imwhznmxe1",
+      "account": "imwhznmxeb",
+      "type": "income",
+      "related": "Salary / Wages",
+      "description": "Salary (sample)",
+      "amount": 3500
+    },
+    {
+      "id": "imwhznmxf16",
+      "date": "2026-11-03",
+      "user": "imwhznmxe2",
+      "account": "imwhznmxeb",
+      "type": "expense",
+      "related": "Rent/Housing",
+      "description": "Rent (sample)",
+      "amount": 1600
+    },
+    {
+      "id": "imwhznmxf17",
+      "date": "2026-11-07",
+      "user": "imwhznmxe2",
+      "account": "imwhznmxeb",
+      "type": "expense",
+      "related": "Groceries",
+      "description": "Groceries (sample)",
+      "amount": 215.4
+    },
+    {
+      "id": "imwhznmxf18",
+      "date": "2026-11-10",
+      "user": "imwhznmxe0",
+      "account": "imwhznmxe8",
+      "type": "debt",
+      "related": "Tuition Fee",
+      "description": "Tuition payment (sample)",
+      "amount": 671.71
+    },
+    {
+      "id": "imwhznmxf19",
+      "date": "2026-11-12",
+      "user": "imwhznmxe2",
+      "account": "imwhznmxeb",
+      "type": "expense",
+      "related": "Eating out (example)",
+      "description": "Dinner out (sample)",
+      "amount": 62.5
+    }
+  ],
+  "ui": {
+    "tab": "data",
+    "accUser": "imwhznmxe0",
+    "build": 3
+  },
+  "transactionCategories": [
+    {
+      "id": "general",
+      "name": "General"
+    },
+    {
+      "id": "food",
+      "name": "Food & dining"
+    },
+    {
+      "id": "housing",
+      "name": "Housing"
+    },
+    {
+      "id": "transport",
+      "name": "Transport"
+    },
+    {
+      "id": "utilities",
+      "name": "Utilities"
+    },
+    {
+      "id": "health",
+      "name": "Healthcare"
+    },
+    {
+      "id": "shopping",
+      "name": "Shopping"
+    }
+  ]
+}

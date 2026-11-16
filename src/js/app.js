@@ -155,9 +155,29 @@ function field(col, row) {
 //Purpose: Detach references to a deleted item from the state, based on the collection and ID provided.
 function detach(collection, id) {
   if (collection === 'accounts') {
+    const commitmentIds = new Set(
+      state.commitments
+        .filter(commitment => commitment.account === id)
+        .map(commitment => commitment.id)
+    );
     state.commitments = state.commitments.filter(commitment => commitment.account !== id);
     state.transactions.forEach(transaction => {
-      if (transaction.account === id) transaction.account = '';
+      if (
+        (transaction.related || '').startsWith('commitment:') &&
+        commitmentIds.has(transaction.related.slice('commitment:'.length))
+      ) {
+        transaction.related = '';
+      }
+      if (
+        transaction.account === id ||
+        transaction.transferTo === id ||
+        (Array.isArray(transaction.balanceImpact) &&
+          transaction.balanceImpact.some(impact => impact.account === id))
+      ) {
+        transaction.account = '';
+        transaction.transferTo = '';
+        transaction.balanceImpact = [];
+      }
     });
   }
   if (collection === 'debts') {
@@ -165,6 +185,9 @@ function detach(collection, id) {
       if (commitment.target === 'debt:' + id) {
         commitment.target = DOMAIN_CONSTANTS.COMMITMENT_OTHER_TARGET;
       }
+    });
+    state.transactions.forEach(transaction => {
+      if (transaction.related === 'debt:' + id) transaction.related = '';
     });
   }
   if (collection === 'goals') {

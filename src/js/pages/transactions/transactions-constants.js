@@ -16,12 +16,22 @@
     Object.freeze([type.TRANSFER, 'Transfer'])
   ]);
   const typeLabels = Object.freeze(Object.fromEntries(types));
+  const defaultCategories = Object.freeze([
+    Object.freeze({ id: 'general', name: 'General' }),
+    Object.freeze({ id: 'food', name: 'Food & dining' }),
+    Object.freeze({ id: 'housing', name: 'Housing' }),
+    Object.freeze({ id: 'transport', name: 'Transport' }),
+    Object.freeze({ id: 'utilities', name: 'Utilities' }),
+    Object.freeze({ id: 'health', name: 'Healthcare' }),
+    Object.freeze({ id: 'shopping', name: 'Shopping' })
+  ]);
 
   window.HouseholdPlannerConstants = window.HouseholdPlannerConstants || {};
   window.HouseholdPlannerConstants.transactions = Object.freeze({
     TYPE: type,
     TYPES: types,
     TYPE_LABEL: typeLabels,
+    DEFAULT_CATEGORIES: defaultCategories,
     DEFAULT_TYPE: type.EXPENSE,
     ICONS: Object.freeze({
       [type.INCOME]: Object.freeze(['--green', '<path d="M12 5v14M12 19l-5-5M12 19l5-5"/>']),

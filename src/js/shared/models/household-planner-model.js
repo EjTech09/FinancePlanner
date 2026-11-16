@@ -76,13 +76,33 @@ function calculatePlan({
 }
 
 function calculateSummary(state, asOfDate) {
-  const summary = { accounts: {}, goals: {}, debts: {} };
+  const summary = { accounts: {}, commitments: {}, goals: {}, debts: {} };
   const rateFor = currency => currencyRate(currency, state.fx);
   const currencyForAccount = accountId =>
     (state.accounts.find(account => account.id === accountId) || {}).currency ||
     window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY;
+  const commitmentAmount = commitment => {
+    const accountCurrency = currencyForAccount(commitment.account);
+    const fulfilled = sumBy(
+      state.transactions.filter(transaction =>
+        transaction.related === 'commitment:' + commitment.id &&
+        transaction.type === window.HouseholdPlannerConstants.transactions.TYPE.EXPENSE &&
+        state.accounts.some(account => account.id === transaction.account) &&
+        toNumber(transaction.amount) !== 0
+      ),
+      transaction => {
+        const transactionCurrency = currencyForAccount(transaction.account);
+        const transactionRate = rateFor(transactionCurrency);
+        const commitmentRate = rateFor(accountCurrency);
+        if (transactionRate <= 0 || commitmentRate <= 0) return 0;
+        const transactionAmount = Math.abs(toNumber(transaction.amount));
+        return transactionAmount * transactionRate / commitmentRate;
+      }
+    );
+    return Math.max(toNumber(commitment.amount) - fulfilled, 0);
+  };
   const commitmentInNZD = commitment =>
-    toNumber(commitment.amount) * rateFor(currencyForAccount(commitment.account));
+    commitmentAmount(commitment) * rateFor(currencyForAccount(commitment.account));
   const committedForTarget = target =>
     sumBy(state.commitments.filter(commitment => commitment.target === target), commitmentInNZD);
 
@@ -93,7 +113,13 @@ function calculateSummary(state, asOfDate) {
 
   for (const account of state.accounts) {
     const conversionRate = rateFor(account.currency);
-    const balance = toNumber(account.balance) * conversionRate;
+    const transactionAdjustment = sumBy(
+      state.transactions.flatMap(transaction =>
+        Array.isArray(transaction.balanceImpact) ? transaction.balanceImpact : []
+      ),
+      impact => impact.account === account.id ? impact.amount : 0
+    );
+    const balance = (toNumber(account.balance) + transactionAdjustment) * conversionRate;
     const liabilities = toNumber(account.liabilities) * conversionRate;
     const committed = sumBy(
       state.commitments.filter(commitment => commitment.account === account.id),
@@ -118,6 +144,10 @@ function calculateSummary(state, asOfDate) {
     };
   }
 
+  for (const commitment of state.commitments) {
+    summary.commitments[commitment.id] = { amount: commitmentAmount(commitment) };
+  }
+
   for (const goal of state.goals) {
     const saved = committedForTarget('goal:' + goal.id);
     const hasTarget = goal.target !== '' && goal.target != null;
@@ -137,7 +167,22 @@ function calculateSummary(state, asOfDate) {
   }
 
   for (const debt of state.debts) {
-    const balance = toNumber(debt.balance) * rateFor(debt.currency);
+    const paid = sumBy(
+      state.transactions.filter(transaction =>
+        transaction.related === 'debt:' + debt.id &&
+        transaction.type === window.HouseholdPlannerConstants.transactions.TYPE.DEBT &&
+        state.accounts.some(account => account.id === transaction.account) &&
+        toNumber(transaction.amount) !== 0
+      ),
+      transaction => {
+        const transactionCurrency = currencyForAccount(transaction.account);
+        const transactionRate = rateFor(transactionCurrency);
+        const debtRate = rateFor(debt.currency);
+        if (transactionRate <= 0 || debtRate <= 0) return 0;
+        return Math.abs(toNumber(transaction.amount)) * transactionRate / debtRate;
+      }
+    );
+    const balance = Math.max(toNumber(debt.balance) - paid, 0) * rateFor(debt.currency);
     const funded = committedForTarget('debt:' + debt.id);
     const progress = calculatePlan({
       balance,

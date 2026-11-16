@@ -37,6 +37,11 @@
     };
     const deleteMoneyItem = (row, collection) => {
       state[collection] = state[collection].filter(current => current !== row);
+      if (collection === 'expenses') {
+        state.transactions.forEach(transaction => {
+          if (transaction.related === 'expense:' + row.id) transaction.related = '';
+        });
+      }
     };
     const createGoal = () => {
       const goal = { id: uid(), name: '', user: '', target: '', date: '', monthly: '' };
@@ -64,6 +69,9 @@
     };
     const deleteDebt = debt => {
       state.debts = state.debts.filter(row => row !== debt);
+      state.transactions.forEach(transaction => {
+        if (transaction.related === 'debt:' + debt.id) transaction.related = '';
+      });
       detach('debts', debt.id);
     };
 

@@ -5,7 +5,7 @@
   window.HouseholdPlannerPages.dataService = context => {
     const PAGE_ID = window.HouseholdPlannerConstants.app.PAGE_ID;
     const {
-      state, persistence, replaceState, setLegacy, markDirty
+      state, persistence, replaceState, setLegacy, markDirty, uid
     } = context;
 
     const storageMessage = () => persistence.available
@@ -19,6 +19,21 @@
       markDirty();
     };
 
-    return { storageMessage, clearData };
+    const addTransactionCategory = name => {
+      const normalizedName = (name || '').trim();
+      if (!normalizedName || state.transactionCategories.some(category =>
+        (category.name || '').trim().toLocaleLowerCase() === normalizedName.toLocaleLowerCase()
+      )) return false;
+      state.transactionCategories.push({ id: uid(), name: normalizedName });
+      return true;
+    };
+    const removeTransactionCategory = category => {
+      state.transactionCategories = state.transactionCategories.filter(item => item !== category);
+      state.transactions.forEach(transaction => {
+        if (transaction.category === category.id) transaction.category = '';
+      });
+    };
+
+    return { storageMessage, clearData, addTransactionCategory, removeTransactionCategory };
   };
 })();

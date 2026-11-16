@@ -388,7 +388,7 @@
           sRow('Owed to', field(sCol('Owed to', 'creditor', 'text'), debt)),
           sRow('Due date', field(sCol('Due date', 'due', 'date'), debt)),
           sRow('Currency', field(sCol('Currency', 'currency', 'select', { opts: curOpts }), debt)),
-          sRow('Balance', field(sCol('Balance', 'balance', 'number'), debt)),
+          sRow('Starting balance', field(sCol('Starting balance', 'balance', 'number'), debt)),
           sRow('Monthly payment (NZD)', field(sCol('Monthly payment (NZD)', 'monthly', 'number'), debt))
         ),
         h('div', { class: 'fgroup' },

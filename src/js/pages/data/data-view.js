@@ -10,7 +10,7 @@
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.dataView = (context, service) => {
     const DATA_CONSTANTS = window.HouseholdPlannerConstants.data;
-    const { h, head, tableView, tile, themeSeg, bento, startImport } = context;
+    const { state, h, head, tableView, tile, themeSeg, bento, startImport } = context;
 
     const dataView = actions => {
       const el = h('div', {}, head('People and data', service.storageMessage()));
@@ -43,6 +43,39 @@
         h('p', { class: 'sub' }, 'Auto follows your device. Light and Dark stay as you set them.'),
         h('div', { style: 'margin-top:16px' }, themeSeg())
       );
+      const categoryInput = h('input', {
+        type: 'text',
+        placeholder: 'e.g. Childcare',
+        'aria-label': 'New transaction category'
+      });
+      const categoryList = h('div', { class: 'li-wrap tx-card' },
+        state.transactionCategories.length
+          ? state.transactionCategories.map(category => h(
+            'div',
+            { class: 'frow' },
+            h('span', { class: 'fl' }, category.name),
+            h('button', {
+              class: 'btn danger',
+              type: 'button',
+              onclick: () => actions.removeTransactionCategory(category)
+            }, 'Remove')
+          ))
+          : h('p', { class: 'empty' }, 'No transaction categories yet.')
+      );
+      const categoriesTile = tile(
+        7,
+        {},
+        h('h2', {}, 'Transaction categories'),
+        h('p', { class: 'sub' }, 'Manage the categories available on each transaction. Removing a category leaves existing transactions uncategorized.'),
+        h('div', { class: 'frow' }, categoryInput, h('button', {
+          class: 'btn',
+          type: 'button',
+          onclick: () => {
+            if (actions.addTransactionCategory(categoryInput.value)) categoryInput.value = '';
+          }
+        }, 'Add category')),
+        categoryList
+      );
       const dataTile = tile(
         12,
         {},
@@ -58,6 +91,7 @@
       );
       el.append(bento(
         peopleTable,
+        categoriesTile,
         appearanceTile,
         dataTile
       ));

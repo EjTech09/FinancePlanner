@@ -33,6 +33,9 @@
     };
     const deleteCommitment = commitment => {
       state.commitments = state.commitments.filter(row => row !== commitment);
+      state.transactions.forEach(transaction => {
+        if (transaction.related === 'commitment:' + commitment.id) transaction.related = '';
+      });
     };
     const createAccount = () => {
       const filter = accFilter();

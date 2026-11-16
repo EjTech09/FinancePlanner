@@ -27,8 +27,10 @@
         transaction.date
           ? fmtDate(new Date(transaction.date + 'T00:00:00'))
           : 'No date',
-        account ? account.name : 'No account'
-      ].join(', ');
+        account ? account.name : 'No account',
+        service.categoryLabel(transaction),
+        service.relatedLabel(transaction)
+      ].filter(Boolean).join(', ');
       const originalAmount = currency !== DOMAIN.DEFAULT_CURRENCY && hasAmount(transaction)
         ? ', ' + currency + ' ' + num(transaction.amount).toLocaleString('en-NZ', {
           minimumFractionDigits: 2,
@@ -121,21 +123,47 @@
       );
       const top = h('div', { class: 'sheet-top' }, grab, heading);
       panel.append(top);
+      const transferRow = sRow('Transfer to', field(sCol('Transfer destination', 'transferTo', 'select', {
+        opts: accOpts,
+        onChange: () => service.updateBalanceImpact(row)
+      }), row));
+      const updateTransferRow = () => {
+        transferRow.style.display = row.type === TYPE.TRANSFER ? '' : 'none';
+      };
+      updateTransferRow();
+      transferRow.classList.add('transfer-row');
       [
         [
           sRow('Description', field(sCol('Description', 'description', 'text', { ph: 'What was it for?' }), row)),
-          sRow('Amount', field(sCol('Amount (account currency)', 'amount', 'number'), row)),
+          sRow('Amount', field(sCol('Amount (account currency)', 'amount', 'number', {
+            onChange: () => service.updateBalanceImpact(row)
+          }), row)),
           sRow('Date', field(sCol('Date', 'date', 'date'), row))
         ],
         [
           sRow('Type', field(sCol('Type', 'type', 'select', {
-            opts: () => TYPES.map(([value, label]) => ({ v: value, t: label }))
+            opts: () => TYPES.map(([value, label]) => ({ v: value, t: label })),
+            onChange: () => {
+              service.updateRelated(row);
+              updateTransferRow();
+            }
           }), row)),
-          sRow('Account', field(sCol('Account', 'account', 'select', { opts: accOpts }), row)),
+          sRow('Account', field(sCol('Account', 'account', 'select', {
+            opts: accOpts,
+            onChange: () => service.updateBalanceImpact(row)
+          }), row)),
           sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), row)),
-          sRow('Related item', field(sCol('Related item', 'related', 'text', {
-            ph: 'Expense, debt or goal name'
-          }), row))
+          sRow('Category', field(sCol('Category', 'category', 'select', {
+            opts: () => service.categoryOptions(row)
+          }), row)),
+          sRow('Map to', field(sCol('Map to', 'related', 'select', {
+            opts: () => service.relatedOptions(row),
+            onChange: () => {
+              service.updateRelated(row);
+              updateTransferRow();
+            }
+          }), row)),
+          transferRow
         ],
         [
           sCalc('Currency', () =>
@@ -233,7 +261,7 @@
     function render(onAdd, onSelectType, onEdit) {
       const el = h('div', {}, head(
         'Transactions',
-        'A record of money in and out. It is for tracking only and does not change balances or the budget. Tap a transaction to see and edit the details.'
+        'Record money in and out to update account balances. Link payments to debts, money set aside or planned expenses. Tap a transaction to edit it.'
       ));
       const selectedType = state.ui.txType || DOMAIN.FILTER_ALL;
       const countByType = type => type === DOMAIN.FILTER_ALL

@@ -30,6 +30,22 @@
       render();
     };
 
-    return () => view({ exportJson, clearData });
+    const addTransactionCategory = name => {
+      if (!service.addTransactionCategory(name)) {
+        alert('Enter a unique category name.');
+        return false;
+      }
+      save();
+      render();
+      return true;
+    };
+    const removeTransactionCategory = category => {
+      if (!confirm('Remove this category? Existing transactions will become uncategorized.')) return;
+      service.removeTransactionCategory(category);
+      save();
+      render();
+    };
+
+    return () => view({ exportJson, clearData, addTransactionCategory, removeTransactionCategory });
   };
 })();
