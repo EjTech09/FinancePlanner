@@ -8,25 +8,11 @@
    * clear local state, and switch the overall appearance theme.
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
-  window.HouseholdPlannerPages.data = context => {
-    const { state, persistence, h, head, tableView, tile, themeSeg, bento, startImport, replaceState, setLegacy, markDirty, save, render } = context;
-    const dataView = () => {
-      const storageMessage = persistence.available
-        ? 'Everything you type is saved in this browser on this device. Nothing is sent anywhere.'
-        : 'Saving is switched off in this view. Open the file directly in your browser to keep your changes.';
-      const el = h('div', {}, head('People and data', storageMessage));
-      const exportJson = () => {
-        const data = new Blob([JSON.stringify(state, null, 2)], {
-          type: 'application/json'
-        });
-        const link = h('a', {
-          href: URL.createObjectURL(data),
-          download: 'household-planner-data.json'
-        });
-        document.body.append(link);
-        link.click();
-        link.remove();
-      };
+  window.HouseholdPlannerPages.dataView = (context, service) => {
+    const { h, head, tableView, tile, themeSeg, bento, startImport } = context;
+
+    const dataView = actions => {
+      const el = h('div', {}, head('People and data', service.storageMessage()));
       const peopleTable = tableView({
         title: 'People',
         note: 'Everyone who owns accounts, debts, goals or expenses. These names fill the User dropdowns.',
@@ -56,17 +42,6 @@
         h('p', { class: 'sub' }, 'Auto follows your device. Light and Dark stay as you set them.'),
         h('div', { style: 'margin-top:16px' }, themeSeg())
       );
-      const clearData = () => {
-        if (!confirm('Delete all data on this device? Export a copy first if you want to keep it.')) {
-          return;
-        }
-        replaceState(persistence.blank());
-        setLegacy(false);
-        state.ui.tab = 'data';
-        markDirty();
-        save();
-        render();
-      };
       const dataTile = tile(
         12,
         {},
@@ -75,9 +50,9 @@
         h(
           'div',
           { class: 'actions' },
-          h('button', { class: 'btn', type: 'button', onclick: exportJson }, 'Export JSON'),
+          h('button', { class: 'btn', type: 'button', onclick: actions.exportJson }, 'Export JSON'),
           h('button', { class: 'btn plain', type: 'button', onclick: startImport }, 'Import JSON'),
-          h('button', { class: 'btn danger', type: 'button', onclick: clearData }, 'Clear everything')
+          h('button', { class: 'btn danger', type: 'button', onclick: actions.clearData }, 'Clear everything')
         )
       );
       el.append(bento(

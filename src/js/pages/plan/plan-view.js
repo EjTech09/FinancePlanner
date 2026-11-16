@@ -8,8 +8,11 @@
    * lists for income, expenses, goals, and debt payments.
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
-  window.HouseholdPlannerPages.plan = context => {
-    const { state, D, sum, money, num, h, head, tile, bento, CATS, commit, markDirty, uid, field, detach, sRow, sCalc, sCol, userOpts, curOpts, rate, accountCurrency, nameOf, cls, esc, fmtDate, calcEl, liv, itemList, expandable, totalsEl } = context;
+  window.HouseholdPlannerPages.planView = (context, service) => {
+    const { state, D, sum, money, num, h, $, head, tile, bento, CATS, field, sRow, sCalc, sCol, userOpts, curOpts, rate, accountCurrency, nameOf, cls, esc, fmtDate, liv, itemList, expandable, totalsEl } = context;
+    const { pctOf, byPriority } = service;
+
+    /* ---------- Shared-state reads and derived values ---------- */
     const meterHtml = category => {
       const summary = D();
       const limit = summary.limit[category];
@@ -24,7 +27,7 @@
         <div class="m-bar" role="img" aria-label="${money(used, 0)} allocated of ${money(limit, 0)}"><i class="${over ? 'over' : ''}" style="width:${percentage}%"></i></div>
         <div class="m-sub">Allocated ${money(used)} of ${money(limit)}</div>`;
     };
-    const planView = () => {
+    const planView = actions => {
       const el = h('div', {}, head(
         'Plan',
         'Split your monthly income across essentials, savings goals, debts and everyday spending. Every section shows what you can still allocate.'
@@ -59,7 +62,7 @@
         {},
         h('h2', {}, 'Income'),
         h('p', { class: 'sub' }, 'Per month. Pick a currency for each source and it is converted to NZD. Tap a source to edit it.'),
-        incomeBody()
+        incomeBody(actions)
       ));
 
       const allocationSummary = h('section', { class: 'tile s-6', 'data-calc': '' });
@@ -92,8 +95,7 @@
           'aria-label': title + ' share of income'
         });
         shareInput.addEventListener('input', () => {
-          state.alloc[category] = shareInput.value === '' ? 0 : parseFloat(shareInput.value);
-          commit();
+          actions.updateAllocation(category, shareInput);
         });
 
         const meter = h('div', { class: 'meter', 'data-calc': '' });
@@ -110,9 +112,7 @@
           body
         );
       };
-      const expenses = (k, label) => expenseBody(k, label);
-      const G = goal => D().goals[goal.id];
-      const Dd = debt => D().debts[debt.id];
+      const expenses = (k, label) => expenseBody(k, label, actions);
       const prog = (saved, total) => {
         const percentage = total > 0 ? Math.min(saved / total, 1) * 100 : 0;
         return {
@@ -138,14 +138,14 @@
         'savings',
         'Savings goals',
         'Tap a goal to see everything and change its monthly amount. Money already set aside comes from the Accounts page.',
-        goalsBody(),
+        goalsBody(actions),
         12
       ));
       grid.append(allocationTile(
         'debt',
         'Debt service',
         'Tap a debt to see everything and set its monthly payment. Priority 1 is paid first.',
-        debtsBody(),
+        debtsBody(actions),
         12
       ));
       return el;
@@ -154,8 +154,7 @@
     const KIND_COLOR = { income: '--c2', essential: '--c1', discretionary: '--c4' };
     const KIND_ICON = { income: '<path d="M12 5v14M12 19l-5-5M12 19l5-5"/>', essential: '<path d="M4 11l8-7 8 7M6 10v9h12v-9"/>', discretionary: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 5.6-7 10-7 10z"/>' };
     const kindIcon = kind => `<span class="tx-ic" style="--tc:var(${KIND_COLOR[kind]})"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${KIND_ICON[kind]}</svg></span>`;
-    const pctOf = (amount, total) => total > 0 ? num(amount) / total * 100 : 0;
-    function moneyItem(row, kind, labels, collection, shareOfSection) {
+    function moneyItem(row, kind, labels, collection, shareOfSection, actions) {
       const nameKey = kind === 'income' ? 'source' : 'name';
       const itemTitle = kind === 'income' ? 'income' : 'expense';
       const amountInNZD = () => num(row.amount) * rate(row.currency || 'NZD');
@@ -204,51 +203,29 @@
           : null,
         h('div', { class: 'fgroup' }, insights),
         h('button', { class: 'btn danger full', type: 'button', onclick: () => {
-          if (!confirm('Delete this ' + itemTitle + '? This cannot be undone.')) return;
-          state[collection] = state[collection].filter(item => item !== row);
-          item.remove();
-          commit();
+          actions.deleteMoneyItem(row, collection, item, itemTitle);
         } }, labels.del));
       expandable(item, header, detail);
       return item;
     }
-    const incItem = row => moneyItem(row, 'income', {
+    const incItem = (row, actions) => moneyItem(row, 'income', {
       untitled: 'Untitled income',
       field: 'Source',
       ph: 'e.g. Salary',
       del: 'Delete income',
       currency: true,
       amount: 'Monthly amount'
-    }, 'income', false);
-    const expItem = row => moneyItem(row, row.category, {
+    }, 'income', false, actions);
+    const expItem = (row, actions) => moneyItem(row, row.category, {
       untitled: 'Untitled expense',
       field: 'Expense',
       ph: 'e.g. Groceries',
       del: 'Delete expense',
       amount: 'Monthly (NZD)',
       section: row.category === 'essential' ? 'essential expenses' : 'discretionary expenses'
-    }, 'expenses', true);
-    function incomeBody() {
-      const { list, empty } = itemList('income', () => true, incItem, 'No income yet. Add the first source.');
-      const add = () => {
-        const income = {
-          id: uid(),
-          source: '',
-          user: '',
-          amount: '',
-          currency: 'NZD'
-        };
-        state.income.push(income);
-        markDirty();
-
-        const item = incItem(income);
-        list.append(item);
-        item._open(true);
-        commit();
-
-        const firstField = $('input', item);
-        if (firstField) firstField.focus();
-      };
+    }, 'expenses', true, actions);
+    function incomeBody(actions) {
+      const { list, empty } = itemList('income', () => true, row => incItem(row, actions), 'No income yet. Add the first source.');
       return h(
         'div',
         {},
@@ -257,29 +234,16 @@
           ['Total monthly income', money(D().income)],
           ['Sources', String(state.income.length)]
         ]),
-        h('button', { class: 'add', type: 'button', onclick: add }, 'Add income')
+        h('button', { class: 'add', type: 'button', onclick: () => actions.addIncome(list) }, 'Add income')
       );
     }
-    function expenseBody(category, addLabel) {
+    function expenseBody(category, addLabel, actions) {
       const { list, empty } = itemList(
         'expenses',
         expense => expense.category === category,
-        expItem,
+        row => expItem(row, actions),
         'Nothing here yet. Add the first one.'
       );
-      const add = () => {
-        const expense = { id: uid(), name: '', category, user: '', amount: '' };
-        state.expenses.push(expense);
-        markDirty();
-
-        const item = expItem(expense);
-        list.append(item);
-        item._open(true);
-        commit();
-
-        const firstField = $('input', item);
-        if (firstField) firstField.focus();
-      };
       return h(
         'div',
         {},
@@ -289,11 +253,11 @@
           ['Share of income', pctOf(D().budgeted[category], D().income).toFixed(1) + '%'],
           ['Items', String(state.expenses.filter(expense => expense.category === category).length)]
         ]),
-        h('button', { class: 'add', type: 'button', onclick: add }, addLabel)
+        h('button', { class: 'add', type: 'button', onclick: () => actions.addExpense(category, list) }, addLabel)
       );
     }
 
-    function goalItem(goal) {
+    function goalItem(goal, actions) {
       const goalSummary = () => D().goals[goal.id] || {
         saved: 0,
         hasTarget: false,
@@ -369,16 +333,12 @@
           })
         ),
         h('button', { class: 'btn danger full', type: 'button', onclick: () => {
-          if (!confirm('Delete this goal? Money set aside for it will be kept as "something else".')) return;
-          state.goals = state.goals.filter(row => row !== goal);
-          detach('goals', goal.id);
-          item.remove();
-          commit();
+          actions.deleteGoal(goal, item);
         } }, 'Delete goal'));
       expandable(item, header, detail);
       return item;
     }
-    function debtItem(debt) {
+    function debtItem(debt, actions) {
       const debtSummary = () => D().debts[debt.id] || {
         bal: 0,
         funded: 0,
@@ -450,39 +410,13 @@
           })
         ),
         h('button', { class: 'btn danger full', type: 'button', onclick: () => {
-          if (!confirm('Delete this debt? Money set aside for it will be kept as "something else".')) return;
-          state.debts = state.debts.filter(row => row !== debt);
-          detach('debts', debt.id);
-          item.remove();
-          commit();
+          actions.deleteDebt(debt, item);
         } }, 'Delete debt'));
       expandable(item, header, detail);
       return item;
     }
-    const byPriority = (first, second) => {
-      const firstPriority = first.priority === '' || first.priority == null
-        ? 999
-        : num(first.priority);
-      const secondPriority = second.priority === '' || second.priority == null
-        ? 999
-        : num(second.priority);
-      return firstPriority - secondPriority;
-    };
-    function goalsBody() {
-      const { list, empty } = itemList('goals', () => true, goalItem, 'No goals yet. Add the first one.');
-      const add = () => {
-        const goal = { id: uid(), name: '', user: '', target: '', date: '', monthly: '' };
-        state.goals.push(goal);
-        markDirty();
-
-        const item = goalItem(goal);
-        list.append(item);
-        item._open(true);
-        commit();
-
-        const firstField = $('input', item);
-        if (firstField) firstField.focus();
-      };
+    function goalsBody(actions) {
+      const { list, empty } = itemList('goals', () => true, goal => goalItem(goal, actions), 'No goals yet. Add the first one.');
       return h(
         'div',
         {},
@@ -492,39 +426,16 @@
           ['Saved so far', money(sum(Object.values(D().goals), 'saved'))],
           ['Monthly total', money(sum(state.goals, 'monthly'))]
         ]),
-        h('button', { class: 'add', type: 'button', onclick: add }, 'Add goal')
+        h('button', { class: 'add', type: 'button', onclick: () => actions.addGoal(list) }, 'Add goal')
       );
     }
-    function debtsBody() {
+    function debtsBody(actions) {
       const list = h('div', { class: 'tx-card acc-list' });
-      state.debts.slice().sort(byPriority).forEach(debt => list.append(debtItem(debt)));
+      state.debts.slice().sort(byPriority).forEach(debt => list.append(debtItem(debt, actions)));
       const empty = liv(
         () => list.children.length ? '' : '<p class="empty">No debts recorded. Add the first one.</p>',
         'div'
       );
-      const add = () => {
-        const debt = {
-          id: uid(),
-          name: '',
-          priority: '',
-          borrower: '',
-          creditor: '',
-          due: '',
-          currency: 'NZD',
-          balance: '',
-          monthly: ''
-        };
-        state.debts.push(debt);
-        markDirty();
-
-        const item = debtItem(debt);
-        list.append(item);
-        item._open(true);
-        commit();
-
-        const firstField = $('input', item);
-        if (firstField) firstField.focus();
-      };
       return h(
         'div',
         {},
@@ -538,7 +449,7 @@
             ['Monthly total', money(sum(state.debts, 'monthly'))]
           ];
         }),
-        h('button', { class: 'add', type: 'button', onclick: add }, 'Add debt')
+        h('button', { class: 'add', type: 'button', onclick: () => actions.addDebt(list) }, 'Add debt')
       );
     }
 
@@ -550,6 +461,12 @@
       };
     };
     const dueDate = s => fmtDate(new Date(s + 'T00:00:00'));
-    return planView;
+    return {
+      render: planView,
+      incomeItem: incItem,
+      expenseItem: expItem,
+      goalItem,
+      debtItem
+    };
   };
 })();

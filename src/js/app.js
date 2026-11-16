@@ -155,6 +155,8 @@ function field(col, row) {
   });
   return el;
 }
+
+//Purpose: Detach references to a deleted item from the state, based on the collection and ID provided.
 function detach(collection, id) {
   if (collection === 'accounts') {
     state.commitments = state.commitments.filter(commitment => commitment.account !== id);
@@ -203,6 +205,8 @@ const themeSeg = () => seg([['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark
 const sRow = (label, ctrl) => h('label', { class: 'frow' }, h('span', { class: 'fl' }, label), ctrl);
 const sCalc = (label, fn) => h('div', { class: 'frow' }, h('span', { class: 'fl' }, label), calcEl(fn));
 const sCol = (label, key, type, extra) => Object.assign({ label, key, type }, extra);
+
+//Purpose: Create a totals element that displays calculated totals based on the provided getTotals function.
 function totalsEl(getTotals) {
   const totals = h('div', { class: 'li-total', 'data-calc': '' });
   totals._u = () => {
@@ -286,7 +290,7 @@ importInput.addEventListener('change', () => {
 
   const reader = new FileReader();
   reader.onload = () => {
-    // try {
+    try {
       const importedData = JSON.parse(reader.result);
       if (
         typeof importedData !== 'object'
@@ -306,17 +310,21 @@ importInput.addEventListener('change', () => {
       save();
       render();
       window.scrollTo(0, 0);
-    // } catch (error) {
-    //   alert('That file could not be read. Choose a JSON file exported from this page.');
-    // }
+    } catch (error) {
+      alert('That file could not be read. Choose a JSON file exported from this page.');
+    }
   };
   reader.readAsText(file);
   importInput.value = '';
 });
 document.body.append(importInput);
+
+//Purpose: Render the dashboard overview page, which summarizes the current month’s cash position, budget allocation, goal debt progress, and per-person financial health from the model data.
 function startImport() {
   importInput.click();
 }
+
+//Purpose: Check if there is any data in the state, including users, income, expenses, goals, debts, accounts, commitments, or transactions.
 function hasData(data = state) {
   const collections = [
     'users',
@@ -332,6 +340,9 @@ function hasData(data = state) {
 }
 
 /* ---------- shell ---------- */
+
+//Purpose: Define the available tabs in the application, including their IDs, labels, render functions, icons, and short labels for navigation.
+//Data structure: Each tab is represented as an array containing the tab ID, label, render function, icon name, and short label. The TABS array is used to generate the navigation buttons and determine which page to render based on the selected tab.
 const TABS = [
   ['dashboard', 'Dashboard', dashboardPage, 'dashboard', 'Dashboard'],
   ['plan', 'Plan', planPage, 'plan', 'Plan'],
@@ -339,10 +350,14 @@ const TABS = [
   ['transactions', 'Transactions', transactionPage.render, 'transactions', 'Activity'],
   ['data', 'People and data', dataPage, 'people', 'People']
 ];
+
+//Purpose: Render the navigation buttons for each tab, highlighting the currently selected tab and allowing users to switch between tabs while saving the state and re-rendering the content.
 function renderNav() {
   const nav = $('#nav');
   nav.innerHTML = '';
   nav.append(h('div', { class: 'brand' }, 'Household planner'));
+
+  //Purpose: Render the navigation buttons for each tab, highlighting the currently selected tab and allowing users to switch between tabs while saving the state and re-rendering the content.
   for (const [id, label, , iconName, shortLabel] of TABS) {
     const button = h('button', {
       type: 'button',
@@ -369,6 +384,8 @@ function renderNav() {
     h('span', {}, saveStatus)
   ));
 }
+
+//Purpose: Render the main content area based on the current state and selected tab, including banners for saving status and legacy data.
 function render() {
   dirty = true;
   const main = $('#main');
@@ -380,6 +397,8 @@ function render() {
       'Saving is blocked here, so changes will be lost when you close this page. Download the file and open it in your browser to save.'
     ));
   }
+
+  //Purpose: If legacy data is detected, show a banner prompting the user to either clear it or keep it, with appropriate actions for each choice.
   if (legacy) {
     const clearLegacyData = () => {
       if (!confirm('Clear all saved data from this browser? Export a copy first if you want to keep it.')) {
@@ -396,6 +415,8 @@ function render() {
       save();
       render();
     };
+
+    //Purpose: If legacy data is detected, show a banner prompting the user to either clear it or keep it, with appropriate actions for each choice.
     main.append(h(
       'div',
       { class: 'banner legacy', role: 'status' },

@@ -8,18 +8,14 @@
    * progress, and per-person financial health from the model data.
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
-  window.HouseholdPlannerPages.dashboard = context => {
-    const { state, D, CATS, money, num, sum, esc, cls, fmtDate, asOf, h, head, tile, hasData, startImport, save, render } = context;
-    const dashView = () => {
-      const R = D();
-      const inc = R.income;
-      const tot = R.totalBudgeted;
-      const left = inc - tot;
-      const top = Math.max(inc, tot, 1);
-      const over = left < -0.005;
-      const pct = inc > 0 ? tot / inc * 100 : 0;
-      const circumference = 2 * Math.PI * 48;
-      const dash = Math.min(pct, 100) / 100 * circumference;
+  window.HouseholdPlannerPages.dashboardView = (context, service) => {
+    const { state, CATS, money, num, sum, esc, cls, fmtDate, asOf, h, head, tile, hasData, startImport } = context;
+
+    const dashView = startFromScratch => {
+      const {
+        R, inc, tot, left, top, over, pct, circumference, dash,
+        goalsOn, onTrack, debtsOn, goalScale, debtScale, people, peopleScale
+      } = service.summary();
       const segs = CATS.map(([key,, color]) =>
         `<i style="width:${R.budgeted[key] / top * 100}%;background:var(--${color})"></i>`
       ).join('') + `<i style="width:${Math.max(left, 0) / top * 100}%"></i>`;
@@ -28,15 +24,6 @@
         const overage = isOverLimit ? ', over by ' + money(R.budgeted[key] - R.limit[key], 0) : '';
         return `<li><span class="dot" style="background:var(--${color})"></span><b>${name}</b><small class="${isOverLimit ? 'bad' : ''}">${money(R.budgeted[key], 0)} of ${money(R.limit[key], 0)} limit${overage}</small></li>`;
       }).join('');
-      const goalsOn = state.goals.filter(goal => R.goals[goal.id].hasTarget);
-      const onTrack = goalsOn.filter(goal => /^(On track|Reached)/.test(R.goals[goal.id].status)).length;
-      const debtsOn = state.debts.filter(debt =>
-        /^(On track|Fully funded)/.test(R.debts[debt.id].status)
-      ).length;
-      const goalScale = Math.max(
-        1,
-        ...state.goals.map(goal => Math.max(num(goal.monthly), R.goals[goal.id].required || 0))
-      );
       const goalRows = state.goals.map(g => {
         const r = R.goals[g.id];
         return `<div class="row"><div class="top"><span class="name">${esc(g.name)}</span><span class="pill ${cls(r.status)}">${esc(r.status)}</span></div>
@@ -44,29 +31,17 @@
           <div class="bar thin"><i style="width:${num(g.monthly) / goalScale * 100}%;background:var(--c1)"></i></div>
           <div class="bar thin"><i style="width:${(r.required || 0) / goalScale * 100}%;background:var(--c3)"></i></div></div>`;
       }).join('') || '<p class="empty">No goals yet. Add one on the Plan page.</p>';
-      const debtScale = Math.max(1, ...state.debts.map(debt => R.debts[debt.id].bal));
       const debtRows = state.debts.slice().sort((a, b) => num(a.priority) - num(b.priority)).map(debt => {
         const progress = R.debts[debt.id];
         return `<div class="row"><div class="top"><span class="name">${esc(debt.name)}</span><span class="pill ${cls(progress.status)}">${esc(progress.status)}</span></div>
           <div class="meta">${money(progress.bal, 0)} owed. ${money(progress.funded, 0)} covered, ${money(progress.unfunded, 0)} still to find. ${num(debt.monthly) > 0 ? money(num(debt.monthly), 0) + ' a month.' : 'No monthly payment yet.'}</div>
           <div class="bar"><i style="width:${progress.funded / debtScale * 100}%;background:var(--c2)"></i><i style="width:${progress.unfunded / debtScale * 100}%;background:var(--c3)"></i></div></div>`;
       }).join('') || '<p class="empty">No debts recorded.</p>';
-      const people = state.users.map(user => {
-        const accounts = state.accounts
-          .filter(account => account.user === user.id)
-          .map(account => R.accounts[account.id]);
-        return {
-          name: user.name,
-          net: sum(accounts, 'net'),
-          committed: sum(accounts, 'committed'),
-          free: sum(accounts, 'free'),
-          accountCount: accounts.length
-        };
-      }).filter(person => person.accountCount);
-      const peopleScale = Math.max(1, ...people.map(person => Math.max(person.net, 0)));
       const personRows = people.map(person => `<div class="row"><div class="top"><span class="name">${esc(person.name)}</span><span class="meta">${money(person.net, 0)} after bills</span></div>
           <div class="meta">${money(person.committed, 0)} set aside, ${money(person.free, 0)} free to use.</div>
           <div class="bar"><i style="width:${Math.max(person.committed, 0) / peopleScale * 100}%;background:var(--c1)"></i><i style="width:${Math.max(person.free, 0) / peopleScale * 100}%;background:var(--c2)"></i></div></div>`).join('') || '<p class="empty">Add accounts to see cash by person.</p>';
+
+      /* DOM construction */
       const el = h('div');
       el.append(head('Dashboard', 'As of ' + fmtDate(asOf) + '.'));
       const dashboard = h('div', { class: 'bento' });
@@ -94,15 +69,7 @@
           h('p', { class: 'sub' }, 'Nothing is saved here yet. Import a JSON file you exported earlier, or start from scratch by adding the people who share this budget.'),
           h('div', { class: 'actions' },
             h('button', { class: 'btn', type: 'button', onclick: startImport }, 'Import JSON'),
-            h('button', {
-              class: 'btn plain',
-              type: 'button',
-              onclick: () => {
-                state.ui.tab = 'data';
-                save();
-                render();
-              }
-            }, 'Start from scratch'))
+            h('button', { class: 'btn plain', type: 'button', onclick: startFromScratch }, 'Start from scratch'))
         ));
       }
 

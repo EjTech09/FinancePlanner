@@ -1,27 +1,14 @@
 (() => {
   'use strict';
 
-  /**
-   * Transactions page and editing sheet.
-   *
-   * Manages the list of account transactions, the per-type grouping, and the
-   * slide-up sheet used to create or edit individual entries.
-   */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
-  window.HouseholdPlannerPages.transactions = context => {
-    const { state, rate, num, fmtDate, money, esc, sum, h, $, $$, uid, field, sRow, sCalc, sCol, accOpts, userOpts, accountCurrency, commit, save, render, detach, tile, head, bento, kpiTile } = context;
-    const TYPES = [
-      ['income', 'Income'],
-      ['expense', 'Expense'],
-      ['debt', 'Debt payment'],
-      ['goal', 'Goal contribution'],
-      ['transfer', 'Transfer']
-    ];
-    const TYPE_LABEL = Object.fromEntries(TYPES);
-    const txNZD = transaction => {
-      const account = state.accounts.find(item => item.id === transaction.account);
-      return num(transaction.amount) * (account ? rate(account.currency) : 1);
-    };
+  window.HouseholdPlannerPages.transactionsView = (context, service) => {
+    const {
+      state, num, fmtDate, money, esc, sum, h, $, $$, field, sRow, sCalc, sCol,
+      accOpts, userOpts, tile, head, bento, kpiTile
+    } = context;
+    const { TYPES, TYPE_LABEL, txNZD, hasAmount } = service;
+
     const TX_IC = {
       income: ['--green', '<path d="M12 5v14M12 19l-5-5M12 19l5-5"/>'],
       expense: ['--orange', '<path d="M12 19V5M12 5l-5 5M12 5l5 5"/>'],
@@ -33,8 +20,8 @@
       const [color, path] = TX_IC[type] || TX_IC.transfer;
       return `<span class="tx-ic" style="--tc:var(${color})"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${path}</svg></span>`;
     };
-    const hasAmount = transaction => !(transaction.amount === '' || transaction.amount == null);
-    function txRowEl(transaction) {
+
+    function txRowEl(transaction, onEdit) {
       const account = state.accounts.find(item => item.id === transaction.account);
       const currency = account ? account.currency : 'NZD';
       const isIncome = transaction.type === 'income';
@@ -55,13 +42,14 @@
         class: 'tx-row',
         type: 'button',
         'data-id': transaction.id,
-        onclick: () => openTxSheet(transaction, false)
+        onclick: () => onEdit(transaction, false)
       });
       row.innerHTML = `${txIcon(transaction.type)}<span class="tx-main"><b>${esc(transaction.description || 'Untitled')}</b><small>${esc(subheading)}</small></span>
         <span class="tx-amt"><b class="${isIncome ? 'ok' : ''}">${hasAmount(transaction) ? sign + money(Math.abs(txNZD(transaction))) : '\u2014'}</b><small>${esc(TYPE_LABEL[transaction.type] || '')}${esc(originalAmount)}</small></span><span class="tx-chev" aria-hidden="true">\u203a</span>`;
       return row;
     }
-    function txList() {
+
+    function txList(onEdit) {
       const wrap = h('div', { class: 'tx-list', 'data-calc': '' });
       wrap._u = () => {
         const selectedType = state.ui.txType || 'all';
@@ -110,7 +98,7 @@
             h('span', {}, label),
             h('span', { class: net < 0 ? 'bad' : '' }, netLabel)
           );
-          const rows = h('div', { class: 'tx-card' }, group.transactions.map(txRowEl));
+          const rows = h('div', { class: 'tx-card' }, group.transactions.map(tx => txRowEl(tx, onEdit)));
           wrap.append(h('div', { class: 'tx-group' }, header, rows));
         }
       };
@@ -118,39 +106,7 @@
       return wrap;
     }
 
-    /* ---------- slide-up sheet ---------- */
-    let sheet = null;
-    function closeSheet(immediate) {
-      if (!sheet) return;
-      const currentSheet = sheet;
-      sheet = null;
-
-      $$('[data-calc],[data-opts]', currentSheet.back).forEach(element => {
-        element.removeAttribute('data-calc');
-        element.removeAttribute('data-opts');
-      });
-      document.removeEventListener('keydown', currentSheet.onKey);
-      document.body.style.overflow = '';
-
-      if (immediate || matchMedia('(prefers-reduced-motion:reduce)').matches) {
-        currentSheet.back.remove();
-      } else {
-        currentSheet.back.classList.remove('in');
-        setTimeout(() => currentSheet.back.remove(), 320);
-      }
-
-      if (currentSheet.isNew && currentSheet.isBlank(currentSheet.row)) {
-        state[currentSheet.coll] = state[currentSheet.coll]
-          .filter(row => row !== currentSheet.row);
-      }
-      commit();
-      const transactionButton = $(`.tx-row[data-id="${currentSheet.row.id}"]`);
-      if (transactionButton) transactionButton.focus();
-    }
-    function openFormSheet(cfg) {
-      closeSheet(true);
-      const { row, coll, isNew } = cfg;
-      const newItemState = { value: isNew };
+    function createTransactionSheet(row, isNew, onClose, onDelete) {
       const back = h('div', { class: 'sheet-back' });
       const panel = h('div', {
         class: 'sheet-panel',
@@ -163,50 +119,67 @@
       const heading = h(
         'div',
         { class: 'sheet-head' },
-        h('h2', { id: 'sheet-title' }, isNew ? cfg.newTitle : cfg.title),
-        h('button', { class: 'done', type: 'button', onclick: () => closeSheet() }, 'Done')
+        h('h2', { id: 'sheet-title' }, isNew ? 'New transaction' : 'Transaction'),
+        h('button', { class: 'done', type: 'button', onclick: onClose }, 'Done')
       );
       const top = h('div', { class: 'sheet-top' }, grab, heading);
       panel.append(top);
-      if (cfg.summary) panel.append(cfg.summary);
-      cfg.groups.forEach(group => panel.append(h('div', { class: 'fgroup' }, group)));
+      [
+        [
+          sRow('Description', field(sCol('Description', 'description', 'text', { ph: 'What was it for?' }), row)),
+          sRow('Amount', field(sCol('Amount (account currency)', 'amount', 'number'), row)),
+          sRow('Date', field(sCol('Date', 'date', 'date'), row))
+        ],
+        [
+          sRow('Type', field(sCol('Type', 'type', 'select', {
+            opts: () => TYPES.map(([value, label]) => ({ v: value, t: label }))
+          }), row)),
+          sRow('Account', field(sCol('Account', 'account', 'select', { opts: accOpts }), row)),
+          sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), row)),
+          sRow('Related item', field(sCol('Related item', 'related', 'text', {
+            ph: 'Expense, debt or goal name'
+          }), row))
+        ],
+        [
+          sCalc('Currency', () =>
+            (state.accounts.find(account => account.id === row.account) || {}).currency || 'NZD'
+          ),
+          sCalc('Amount in NZD', () =>
+            hasAmount(row) ? money(txNZD(row)) : '\u2014'
+          )
+        ]
+      ].forEach(group => panel.append(h('div', { class: 'fgroup' }, group)));
       panel.append(h('button', {
         class: 'btn danger full',
         type: 'button',
-        onclick: () => {
-          if (!confirm(cfg.confirmText)) return;
-          state[coll] = state[coll].filter(item => item !== row);
-          detach(coll, row.id);
-          newItemState.value = false;
-          closeSheet();
-        }
-      }, cfg.deleteLabel));
+        onclick: onDelete
+      }, 'Delete transaction'));
 
-      const onKey = e => {
-        if (e.key === 'Escape') {
-          e.preventDefault();
-          closeSheet();
+      const onKey = event => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          onClose();
           return;
         }
-        if (e.key === 'Tab') {
+        if (event.key === 'Tab') {
           const focusableElements = $$('input,select,button', panel)
             .filter(element => !element.disabled && element.offsetParent !== null);
           if (!focusableElements.length) return;
 
           const first = focusableElements[0];
           const last = focusableElements[focusableElements.length - 1];
-          if (e.shiftKey && document.activeElement === first) {
-            e.preventDefault();
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
             last.focus();
-          } else if (!e.shiftKey && document.activeElement === last) {
-            e.preventDefault();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
             first.focus();
           }
         }
       };
 
       back.addEventListener('pointerdown', event => {
-        if (event.target === back) closeSheet();
+        if (event.target === back) onClose();
       });
       let sy = null;
       top.addEventListener('pointerdown', event => {
@@ -227,7 +200,7 @@
         sy = null;
         panel.style.transition = '';
         panel.style.transform = '';
-        if (distance > 110) closeSheet();
+        if (distance > 110) onClose();
       };
       top.addEventListener('pointerup', endDrag);
       top.addEventListener('pointercancel', endDrag);
@@ -235,87 +208,39 @@
       back.append(panel);
       document.body.append(back);
       document.body.style.overflow = 'hidden';
-      sheet = {
-        back,
-        onKey,
-        row,
-        coll,
-        isBlank: cfg.isBlank,
-        get isNew() {
-          return newItemState.value;
-        }
-      };
       document.addEventListener('keydown', onKey);
       requestAnimationFrame(() => {
         back.classList.add('in');
         (isNew ? $('.frow input', panel) : panel).focus();
       });
-    }
-    function openTxSheet(row, isNew) {
-      openFormSheet({
-        row,
-        isNew,
-        coll: 'transactions',
-        title: 'Transaction',
-        newTitle: 'New transaction',
-        deleteLabel: 'Delete transaction',
-        confirmText: 'Delete this transaction? This cannot be undone.',
-        isBlank: r => !r.description && !hasAmount(r) && !r.related,
-        groups: [
-          [
-            sRow('Description', field(sCol('Description', 'description', 'text', { ph: 'What was it for?' }), row)),
-            sRow('Amount', field(sCol('Amount (account currency)', 'amount', 'number'), row)),
-            sRow('Date', field(sCol('Date', 'date', 'date'), row))
-          ],
-          [
-            sRow('Type', field(sCol('Type', 'type', 'select', {
-              opts: () => TYPES.map(([value, label]) => ({ v: value, t: label }))
-            }), row)),
-            sRow('Account', field(sCol('Account', 'account', 'select', { opts: accOpts }), row)),
-            sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), row)),
-            sRow('Related item', field(sCol('Related item', 'related', 'text', {
-              ph: 'Expense, debt or goal name'
-            }), row))
-          ],
-          [
-            sCalc('Currency', () =>
-              (state.accounts.find(account => account.id === row.account) || {}).currency || 'NZD'
-            ),
-            sCalc('Amount in NZD', () =>
-              hasAmount(row) ? money(txNZD(row)) : '\u2014'
-            )
-          ]
-        ]
-      });
+
+      return {
+        close(immediate) {
+          $$('[data-calc],[data-opts]', back).forEach(element => {
+            element.removeAttribute('data-calc');
+            element.removeAttribute('data-opts');
+          });
+          document.removeEventListener('keydown', onKey);
+          document.body.style.overflow = '';
+          if (immediate || matchMedia('(prefers-reduced-motion:reduce)').matches) {
+            back.remove();
+          } else {
+            back.classList.remove('in');
+            setTimeout(() => back.remove(), 320);
+          }
+        }
+      };
     }
 
-    const txView = () => {
+    function render(onAdd, onSelectType, onEdit) {
       const el = h('div', {}, head(
         'Transactions',
         'A record of money in and out. It is for tracking only and does not change balances or the budget. Tap a transaction to see and edit the details.'
       ));
       const selectedType = state.ui.txType || 'all';
-      const totalByType = type => () => money(
-        sum(state.transactions.filter(transaction => transaction.type === type), txNZD)
-      );
       const countByType = type => type === 'all'
         ? state.transactions.length
         : state.transactions.filter(transaction => transaction.type === type).length;
-      const addTransaction = () => {
-        const transaction = {
-          id: uid(),
-          date: new Date().toISOString().slice(0, 10),
-          user: '',
-          account: '',
-          type: selectedType !== 'all' ? selectedType : 'expense',
-          related: '',
-          description: '',
-          amount: ''
-        };
-        state.transactions.push(transaction);
-        commit();
-        openTxSheet(transaction, true);
-      };
       const filterItems = [['all', 'All'], ...TYPES];
       const filters = h(
         'div',
@@ -324,11 +249,7 @@
           class: 'fl-b',
           type: 'button',
           'aria-pressed': String(selectedType === type),
-          onclick: () => {
-            state.ui.txType = type;
-            save();
-            render();
-          }
+          onclick: () => onSelectType(type)
         },
         h('span', {}, label),
         h('span', { class: 'n' }, String(countByType(type)))))
@@ -341,19 +262,20 @@
         h('button', {
           class: 'btn full',
           type: 'button',
-          onclick: addTransaction
+          onclick: () => onAdd(selectedType)
         }, 'Add transaction')
       );
       el.append(bento(
-        kpiTile('Income', totalByType('income'), 'money in'),
-        kpiTile('Expenses', totalByType('expense'), 'everyday spending'),
-        kpiTile('Debt payments', totalByType('debt'), 'paid towards debts'),
-        kpiTile('Goal contributions', totalByType('goal'), 'put towards goals'),
-        tile(8, { class: 'tx-list-tile' }, h('h2', {}, 'All transactions'), txList()),
+        kpiTile('Income', () => money(service.totalByType('income')), 'money in'),
+        kpiTile('Expenses', () => money(service.totalByType('expense')), 'everyday spending'),
+        kpiTile('Debt payments', () => money(service.totalByType('debt')), 'paid towards debts'),
+        kpiTile('Goal contributions', () => money(service.totalByType('goal')), 'put towards goals'),
+        tile(8, { class: 'tx-list-tile' }, h('h2', {}, 'All transactions'), txList(onEdit)),
         side
       ));
       return el;
-    };
-    return { render: txView, txIcon };
+    }
+
+    return { render, txIcon, createTransactionSheet };
   };
 })();

@@ -10,50 +10,23 @@
    * object, which keeps this page focused on page-specific state and UX.
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
-  window.HouseholdPlannerPages.accounts = context => {
-    const { state, D, h, $, $$, uid, money, moneyCur, num, sum, esc, fmtDate, rate, accountCurrency, nameOf, cls, userOpts, accOpts, targetOpts, curOpts, sRow, sCalc, sCol, calcEl, field, detach, commit, save, render, markDirty, seg, refreshExchangeRates, exchangeRates, bento, tile, head, kpiTile, txIcon, liv, itemList, expandable, totalsEl } = context;
+  window.HouseholdPlannerPages.accountsView = (context, service) => {
+    const { state, D, h, $, money, moneyCur, num, sum, esc, rate, accountCurrency, nameOf, cls, userOpts, accOpts, targetOpts, curOpts, sRow, sCalc, sCol, field, seg, refreshExchangeRates, exchangeRates, bento, tile, head, kpiTile, txIcon, liv, itemList, expandable, totalsEl } = context;
 
+    /* ---------- Shared-state reads and derived values ---------- */
     /**
      * Resolve the active account filter.
      *
      * The UI supports "all accounts", "accounts without a user", or a single user.
      * Invalid stored filters are safely reset back to "all".
      */
-    const accFilter = () => {
-      const filter = state.ui.accUser || 'all';
-      const isKnownUser = state.users.some(user => user.id === filter);
-      return filter === 'all' || filter === 'none' || isKnownUser ? filter : 'all';
-    };
-    /**
-     * Determine whether an account should be visible in the current user filter.
-     */
-    const accMatch = account => {
-      const filter = accFilter();
-      if (filter === 'all') return true;
-      if (filter === 'none') return !account.user;
-      return account.user === filter;
-    };
-
-    /**
-     * Determine whether a commitment belongs to the same filtered account view.
-     */
-    const comMatch = commitment => {
-      const account = state.accounts.find(item => item.id === commitment.account);
-      return account ? accMatch(account) : true;
-    };
-
-    /**
-     * Return the accounts currently visible in the active filter.
-     */
-    const visAcc = () => state.accounts.filter(accMatch);
-
     /**
      * Build a single account row/card and its detail editor.
      *
      * The account card shows summary metrics and a compact editor for balance,
      * liabilities, and user/currency metadata.
      */
-    function accItem(account) {
+    function accItem(account, actions) {
       const accountSummary = () => D().accounts[account.id] || {
         bal: 0,
         net: 0,
@@ -96,21 +69,8 @@
           sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), account)),
           sRow('Currency', field(sCol('Currency', 'currency', 'select', {
             opts: curOpts,
-            onChange: (oldCurrency, newCurrency) => {
-              const from = rate(oldCurrency);
-              const to = rate(newCurrency);
-              if (from > 0 && to > 0) {
-                state.commitments
-                  .filter(commitment =>
-                    commitment.account === account.id &&
-                    commitment.amount !== '' &&
-                    commitment.amount != null
-                  )
-                  .forEach(commitment => {
-                    commitment.amount = num(commitment.amount) * from / to;
-                  });
-              }
-            }
+            onChange: (oldCurrency, newCurrency) =>
+              service.convertAccountCommitments(account.id, oldCurrency, newCurrency)
           }), account)),
           sRow('Balance', field(sCol('Balance', 'balance', 'number'), account)),
           sRow('Liabilities due', field(sCol('Liabilities due', 'liabilities', 'number'), account))
@@ -126,15 +86,11 @@
           })
         ),
         h('button', { class: 'btn danger full', type: 'button', onclick: () => {
-          if (!confirm('Delete this account? Money set aside from it will be removed too.')) return;
-          state.accounts = state.accounts.filter(row => row !== account);
-          detach('accounts', account.id);
-          commit();
-          render();
+          actions.deleteAccount(account);
         } }, 'Delete account'));
       expandable(item, header, detail);
       item._check = () => {
-        if (!accMatch(account)) item.remove();
+        if (!service.accMatch(account)) item.remove();
       };
       return item;
     }
@@ -145,7 +101,7 @@
      * label/amount. The amount is stored in the account's currency, while the totals
      * section converts it to NZD for aggregate reporting.
      */
-    function comItem(c) {
+    function comItem(c, actions) {
       const kind = () => {
         if ((c.target || '').startsWith('debt:')) return 'debt';
         if ((c.target || '').startsWith('goal:')) return 'goal';
@@ -160,13 +116,8 @@
       const item = h('div', { class: 'acc-item', 'data-id': c.id });
       const accountInput = field(sCol('Account', 'account', 'select', {
         opts: accOpts,
-        onChange: (oldAccountId, newAccountId) => {
-          const oldRate = rate(accountCurrency(oldAccountId));
-          const newRate = rate(accountCurrency(newAccountId));
-          if (c.amount !== '' && c.amount != null && oldRate > 0 && newRate > 0) {
-            c.amount = num(c.amount) * oldRate / newRate;
-          }
-        }
+        onChange: (oldAccountId, newAccountId) =>
+          service.convertCommitmentForAccount(c, oldAccountId, newAccountId)
       }), c);
       const amountLabel = liv(
         () => `Amount (${esc(accountCurrency(c.account))})`,
@@ -197,14 +148,11 @@
           h('label', { class: 'frow' }, amountLabel, amountInput)
         ),
         h('button', { class: 'btn danger full', type: 'button', onclick: () => {
-          if (!confirm('Delete this line? This cannot be undone.')) return;
-          state.commitments = state.commitments.filter(row => row !== c);
-          item.remove();
-          commit();
+          actions.deleteCommitment(c, item);
         } }, 'Delete this line'));
       expandable(item, header, detail);
       item._check = () => {
-        if (!comMatch(c)) item.remove();
+        if (!service.comMatch(c)) item.remove();
       };
       return item;
     }
@@ -212,29 +160,8 @@
     /**
      * Render the account summary tile and list editor.
      */
-    function accountsTile() {
-      const { list, empty } = itemList('accounts', accMatch, accItem, 'No accounts for this selection. Add one below.');
-      const add = () => {
-        const filter = accFilter();
-        const account = {
-          id: uid(),
-          name: '',
-          user: filter !== 'all' && filter !== 'none' ? filter : '',
-          currency: 'NZD',
-          balance: '',
-          liabilities: ''
-        };
-        state.accounts.push(account);
-        markDirty();
-
-        const item = accItem(account);
-        list.append(item);
-        item._open(true);
-        commit();
-
-        const firstField = $('input', item);
-        if (firstField) firstField.focus();
-      };
+    function accountsTile(actions) {
+      const { list, empty } = itemList('accounts', service.accMatch, account => accItem(account, actions), 'No accounts for this selection. Add one below.');
       return tile(
         12,
         {},
@@ -242,7 +169,7 @@
         h('p', { class: 'sub' }, 'Tap an account to see and edit everything. Liabilities are bills due soon. Set aside is money already promised, listed in the next section.'),
         h('div', { class: 'li-wrap' }, list, empty),
         totalsEl(() => {
-          const accounts = visAcc()
+          const accounts = service.visibleAccounts()
             .map(account => D().accounts[account.id])
             .filter(Boolean);
           return [
@@ -252,35 +179,14 @@
             ['Free to use', money(sum(accounts, 'free'))]
           ];
         }),
-        h('button', { class: 'add', type: 'button', onclick: add }, 'Add account')
+        h('button', { class: 'add', type: 'button', onclick: () => actions.addAccount(list) }, 'Add account')
       );
     }
     /**
      * Render the set-aside commitments tile and editor.
      */
-    function setAsideTile() {
-      const { list, empty } = itemList('commitments', comMatch, comItem, 'Nothing set aside for this selection yet. Add a line below.');
-      const add = () => {
-        const visibleAccounts = visAcc();
-        const filter = accFilter();
-        const commitment = {
-          id: uid(),
-          account: filter !== 'all' && visibleAccounts.length ? visibleAccounts[0].id : '',
-          target: 'other',
-          label: '',
-          amount: ''
-        };
-        state.commitments.push(commitment);
-        markDirty();
-
-        const item = comItem(commitment);
-        list.append(item);
-        item._open(true);
-        commit();
-
-        const firstField = $('select,input', item);
-        if (firstField) firstField.focus();
-      };
+    function setAsideTile(actions) {
+      const { list, empty } = itemList('commitments', service.comMatch, commitment => comItem(commitment, actions), 'Nothing set aside for this selection yet. Add a line below.');
       return tile(
         12,
         {},
@@ -288,7 +194,7 @@
         h('p', { class: 'sub' }, 'Each amount uses its selected account currency. The combined total is shown in NZD. Tap a line to edit it.'),
         h('div', { class: 'li-wrap' }, list, empty),
         totalsEl(() => {
-          const commitments = state.commitments.filter(comMatch);
+          const commitments = state.commitments.filter(service.comMatch);
           const totalInNZD = sum(
             commitments,
             commitment => num(commitment.amount) * rate(accountCurrency(commitment.account))
@@ -298,7 +204,7 @@
             ['Lines', String(commitments.length)]
           ];
         }),
-        h('button', { class: 'add', type: 'button', onclick: add }, 'Add a line')
+        h('button', { class: 'add', type: 'button', onclick: () => actions.addCommitment(list) }, 'Add a line')
       );
     }
 
@@ -311,8 +217,8 @@
      * - exposing the exchange-rate editing UI,
      * - composing the account and set-aside tiles.
      */
-    const accountsView = () => {
-      const selectedFilter = accFilter();
+    const accountsView = actions => {
+      const selectedFilter = service.accFilter();
       const el = h('div', {}, head(
         'Accounts',
         'Balances stay in each account\u2019s own currency and are converted to NZD with the rates below. Use the filter to look at one person at a time.'
@@ -340,22 +246,14 @@
           value: state.fx[key],
           'aria-label': label
         });
-        input.addEventListener('input', () => {
-          state.fx[key] = input.value === '' ? 0 : parseFloat(input.value);
-          state.fx[key + 'UpdatedAt'] = null;
-          exchangeRates.setStatus(`Using the manually entered ${key === 'php' ? 'PHP/NZD' : 'USD/NZD'} rate.`);
-          commit();
-        });
+        input.addEventListener('input', () => actions.updateExchangeRate(key, input));
         return h('label', {}, label, input);
       };
+
       const filter = seg(
         filterItems,
         selectedFilter,
-        userId => {
-          state.ui.accUser = userId;
-          save();
-          render();
-        },
+        actions.setAccountFilter,
         'Filter by user'
       );
       const exchangeRateControls = h(
@@ -380,7 +278,7 @@
       el.append(h('div', { class: 'toolbar' }, filter, exchangeRateControls));
 
       const selectedTotal = key => () => {
-        const accounts = visAcc()
+        const accounts = service.visibleAccounts()
           .map(account => D().accounts[account.id])
           .filter(Boolean);
         return money(sum(accounts, key), 0);
@@ -390,9 +288,13 @@
         kpiTile('After liabilities', selectedTotal('net'), 'balance less bills due'),
         kpiTile('Set aside', selectedTotal('committed'), 'promised to something'),
         kpiTile('Free to use', selectedTotal('free'), 'after liabilities and set aside'),
-        accountsTile(), setAsideTile()));
+        accountsTile(actions), setAsideTile(actions)));
       return el;
     };
-    return { render: accountsView };
+    return {
+      render: accountsView,
+      accountItem: accItem,
+      commitmentItem: comItem
+    };
   };
 })();

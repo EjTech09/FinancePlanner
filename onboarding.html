@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Developer onboarding | FinancePlanner</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f3f5f8;
+    --surface: #fff;
+    --text: #19212d;
+    --muted: #596579;
+    --line: #dce2eb;
+    --accent: #2459a6;
+    --code: #eef2f8;
+    --note: #edf5ff;
+    font: 16px/1.65 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11151c;
+      --surface: #1b222d;
+      --text: #edf2fa;
+      --muted: #aab5c5;
+      --line: #354052;
+      --accent: #9dc2ff;
+      --code: #262f3d;
+      --note: #202f43;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); }
+  .layout { width: min(1120px, calc(100% - 32px)); margin: 32px auto 64px; }
+  header, section, aside { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+  header { padding: clamp(24px, 5vw, 52px); }
+  section, aside { padding: 24px clamp(20px, 4vw, 36px); margin-top: 20px; }
+  h1, h2, h3 { line-height: 1.2; }
+  h1 { margin: 0 0 12px; font-size: clamp(2rem, 5vw, 3.2rem); letter-spacing: -.04em; }
+  h2 { margin: 0 0 14px; font-size: 1.55rem; }
+  h3 { margin: 22px 0 8px; font-size: 1.1rem; }
+  p { margin: 10px 0; }
+  .lead { max-width: 760px; color: var(--muted); font-size: 1.12rem; }
+  .eyebrow { color: var(--accent); font-size: .8rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+  nav ul { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 0; margin: 24px 0 0; list-style: none; }
+  nav a { font-size: .93rem; font-weight: 650; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  code { padding: .12em .35em; border-radius: 5px; background: var(--code); overflow-wrap: anywhere; }
+  pre { padding: 16px; border-radius: 10px; background: var(--code); overflow-x: auto; line-height: 1.5; }
+  pre code { padding: 0; background: transparent; }
+  ul, ol { padding-left: 1.35rem; }
+  li + li { margin-top: 5px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 14px; }
+  .card { padding: 17px; border: 1px solid var(--line); border-radius: 11px; }
+  .card h3 { margin: 0 0 8px; }
+  .card p { margin: 0; color: var(--muted); }
+  .callout { padding: 14px 16px; border-left: 4px solid var(--accent); border-radius: 6px; background: var(--note); }
+  .small { color: var(--muted); font-size: .92rem; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+  th { font-size: .9rem; }
+  footer { padding: 24px 8px; color: var(--muted); text-align: center; }
+  @media print {
+    :root { color-scheme: light; --bg: #fff; --surface: #fff; --text: #111; --muted: #444; --line: #bbb; --code: #f3f3f3; --note: #f5f8fc; }
+    .layout { width: 100%; margin: 0; }
+    header, section, aside { break-inside: avoid; box-shadow: none; }
+    a { color: inherit; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <header>
+    <div class="eyebrow">Developer guide</div>
+    <h1>Maintaining FinancePlanner</h1>
+    <p class="lead">A practical orientation to the app’s structure, state, calculations, and the Accounts page. Use this before changing a feature so edits stay consistent with the browser-only architecture.</p>
+    <nav aria-label="On this page">
+      <ul>
+        <li><a href="#first-steps">First steps</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#accounts">Accounts page</a></li>
+        <li><a href="#data">State and data</a></li>
+        <li><a href="#workflow">Change workflow</a></li>
+        <li><a href="#validation">Validation</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <section id="first-steps">
+      <h2>First steps</h2>
+      <ol>
+        <li>Open <a href="README.md">README.md</a> for the project conventions and entry point.</li>
+        <li>Run the app by opening <a href="index.html">index.html</a> directly in a modern browser. There is no build step or package install.</li>
+        <li>Explore the <strong>People and data</strong> tab. Export a JSON backup before testing destructive data changes; the sample files in <a href="data/">data/</a> can be imported for realistic data.</li>
+        <li>For account-related work, read the page collaborators: <a href="src/js/pages/accounts/accounts-controller.js">accounts-controller.js</a>, <a href="src/js/pages/accounts/accounts-view.js">accounts-view.js</a>, <a href="src/js/pages/accounts/accounts-service.js">accounts-service.js</a>, <a href="src/js/app.js">app.js</a>, <a href="src/js/shared/models/household-planner-model.js">household-planner-model.js</a>, and <a href="src/js/shared/services/persistence.js">persistence.js</a>.</li>
+      </ol>
+      <p class="callout"><strong>Privacy boundary:</strong> household data is stored in this browser’s local storage and the app does not upload it. The exchange-rate service makes a separate request to <code>open.er-api.com</code>; do not add personal financial data to that request.</p>
+    </section>
+
+    <section id="architecture">
+      <h2>How the app is put together</h2>
+      <p>This is a small, dependency-free browser application. Scripts are classic scripts wrapped in IIFEs; they publish shared APIs on <code>window</code> rather than using a module bundler. Keep the script order in <a href="index.html">index.html</a> aligned with those dependencies.</p>
+      <div class="grid">
+        <article class="card">
+          <h3>App shell</h3>
+          <p><a href="src/js/app.js">app.js</a> loads and saves state, owns navigation, assembles the shared page context, renders the selected page, and coordinates updates.</p>
+        </article>
+        <article class="card">
+          <h3>Shared calculations</h3>
+          <p><a href="src/js/shared/models/household-planner-model.js">The model</a> converts currencies and derives account, debt, goal, and budget summaries. Views should display these results rather than reimplementing totals.</p>
+        </article>
+        <article class="card">
+          <h3>Shared UI and helpers</h3>
+          <p><a href="src/js/shared/utils/dom.js">DOM helpers</a>, <a href="src/js/shared/components/ui.js">UI primitives</a>, and <a href="src/js/shared/components/table-editor.js">table editor</a> provide common rendering and editing behavior.</p>
+        </article>
+        <article class="card">
+          <h3>Page controllers</h3>
+          <p>Each page under <a href="src/js/pages/">src/js/pages/</a> is split into <code>&lt;pagename&gt;-controller.js</code> (page actions and coordination), <code>&lt;pagename&gt;-view.js</code> (DOM rendering), and <code>&lt;pagename&gt;-service.js</code> (state operations and calculations). Scripts receive shared helpers through the app context.</p>
+        </article>
+        <article class="card">
+          <h3>Persistence and FX</h3>
+          <p><a href="src/js/shared/services/persistence.js">Persistence</a> handles browser storage, defaults, and normalization. <a href="src/js/shared/services/exchange-rates.js">Exchange rates</a> fetches provider rates and reports status.</p>
+        </article>
+        <article class="card">
+          <h3>App shell markup and styles</h3>
+          <p><a href="index.html">index.html</a> defines the navigation and main-content mounts and script order; <a href="src/css/household-planner.css">the stylesheet</a> owns responsive layout, themes, and component styles.</p>
+        </article>
+      </div>
+      <h3>Script load order</h3>
+      <p>The shell loads the model and DOM utility first, followed by persistence, exchange rates, shared UI/table components, then each page’s service, view, and controller, followed by <code>app.js</code>. Controllers register factories before the app constructs them; dependencies arrive through a context object.</p>
+    </section>
+
+    <section id="accounts">
+      <h2>Accounts page: responsibilities and behavior</h2>
+      <p><a href="src/js/pages/accounts/accounts-controller.js">accounts-controller.js</a> registers <code>HouseholdPlannerPages.accounts(context)</code> and returns a <code>render</code> function. The <a href="src/js/pages/accounts/accounts-view.js">view</a> builds account and set-aside editing UI; the <a href="src/js/pages/accounts/accounts-service.js">service</a> owns account filtering, currency conversion, and account/commitment state operations.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Area</th><th>What it does</th><th>Important behavior</th></tr></thead>
+          <tbody>
+            <tr><td>Account cards</td><td>Show balance, liabilities, committed amount, free amount, and status; expand to edit account fields.</td><td>Balances and liabilities are entered in the account’s currency. Summary values are converted to NZD.</td></tr>
+            <tr><td>Set-aside commitments</td><td>Connect an amount to an account and a debt, goal, or free-text purpose.</td><td>The entered amount is in the selected account’s currency; the aggregate total is reported in NZD.</td></tr>
+            <tr><td>Person filter</td><td>Shows all accounts, accounts with no owner, or one person’s accounts.</td><td>The selection is saved in <code>state.ui.accUser</code>. A stored value for a deleted/unknown person falls back to “all.”</td></tr>
+            <tr><td>Exchange-rate controls</td><td>Allow manual PHP/NZD and USD/NZD rates or a provider refresh.</td><td>Editing a rate clears its provider timestamp. Refreshing is automatic at startup and every 15 minutes; the service avoids automatic refresh while a rate input is focused.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Currency conventions</h3>
+      <ul>
+        <li><code>state.fx.php</code> is PHP per 1 NZD, so a PHP amount converts to NZD by dividing by this rate.</li>
+        <li><code>state.fx.usd</code> is NZD per 1 USD, so a USD amount converts to NZD by multiplying by this rate.</li>
+        <li>NZD is the default currency and converts at 1. Keep input labels, display labels, model math, and import normalization consistent if adding a currency.</li>
+        <li>Changing an account’s currency or moving a commitment to another account adjusts its stored amount using the old/new NZD rates, preserving its NZD value when both rates are valid.</li>
+      </ul>
+      <h3>Editing and refresh conventions</h3>
+      <p>Most account fields are created with the app’s <code>field()</code> helper. It updates the backing state, runs any field-specific <code>onChange</code>, then calls <code>commit()</code>. A commit invalidates calculated summaries, saves state, and refreshes the rendered calculated values. New rows use <code>uid()</code>, <code>markDirty()</code>, and <code>commit()</code>; deletions should preserve the existing confirmation and relationship-cleanup behavior.</p>
+    </section>
+
+    <section id="data">
+      <h2>State, calculations, and data safety</h2>
+      <ul>
+        <li>The primary state is an object containing collections such as <code>users</code>, <code>accounts</code>, <code>commitments</code>, <code>debts</code>, <code>goals</code>, and <code>transactions</code>, plus <code>fx</code> and <code>ui</code>.</li>
+        <li>Persistence uses the key <code>household-planner-v1</code>. Theme choice is stored separately. Defaults and old-data normalization live in the persistence service.</li>
+        <li>Account summaries are derived by <code>HouseholdPlannerModel.compute(state, asOf)</code>. Account values are converted to NZD; net is balance less liabilities; free is net less commitments.</li>
+        <li>Commitments use target IDs such as <code>debt:&lt;id&gt;</code> and <code>goal:&lt;id&gt;</code>. The app’s <code>detach()</code> helper handles references when linked records are removed. Check this behavior before changing deletion paths.</li>
+        <li>Export/import is JSON-based. Normalization supports missing fields and legacy stored formats; the current saved-data build marker is updated by <code>save()</code>. If a state-shape change needs migration, update normalization and test both old and current data.</li>
+        <li>Browser storage can be unavailable or full. The shell reports when saving is unavailable; avoid making UI changes appear persisted when save did not succeed.</li>
+      </ul>
+      <p class="small">The data-management UI is implemented in <a href="src/js/pages/data/data-view.js">data-view.js</a>, with actions coordinated by <a href="src/js/pages/data/data-controller.js">data-controller.js</a>. A downloaded export is a sensitive backup: treat it like the household’s financial records.</p>
+    </section>
+
+    <section id="workflow">
+      <h2>Safe change workflow</h2>
+      <ol>
+        <li><strong>Trace the feature.</strong> Follow the path from the page renderer to its context helpers and then to model/persistence behavior. Search for the state fields and shared helper before introducing a second implementation.</li>
+        <li><strong>Keep ownership clear.</strong> Put page-specific interactions in the page controller, reusable presentation in shared components, calculations in the model, and storage/migration logic in persistence.</li>
+        <li><strong>Preserve state and relationship rules.</strong> Account removal currently removes its commitments and clears transaction account references. Debt/goal removal reclassifies linked commitments. User removal clears owner references.</li>
+        <li><strong>Use existing rendering patterns.</strong> Build DOM with the existing helpers, use <code>data-calc</code> plus an <code>_u()</code> updater for values that change after commits, and use <code>esc()</code> when inserting user-provided text into HTML.</li>
+        <li><strong>Keep docs and browser behavior aligned.</strong> Update the relevant page copy or README when a user-facing workflow or developer convention changes.</li>
+      </ol>
+      <div class="callout"><strong>Current worktree note:</strong> the existing working tree includes an uncommitted edit in <a href="src/js/app.js">app.js</a> that enables error handling for JSON import parsing. Do not overwrite or revert it while making unrelated changes.</div>
+    </section>
+
+    <section id="validation">
+      <h2>Validation checklist</h2>
+      <p>No automated test files or build configuration were found in the repository at the time this guide was written. For a change, run the app directly in a browser and verify the affected flow, plus the relevant checks below.</p>
+      <ul>
+        <li>Open <a href="index.html">index.html</a>; check the browser console for script errors and confirm all tabs render.</li>
+        <li>For account edits, add an account, change owner/currency/balance/liabilities, and confirm the account summary and dashboard totals update.</li>
+        <li>For commitments, add/edit/delete a line; try linking it to a debt or goal; verify account filtering and NZD aggregate totals.</li>
+        <li>For currency logic, check PHP (division), USD (multiplication), and NZD (unchanged); test a currency/account change with saved amounts.</li>
+        <li>Delete an account with linked records and confirm the expected cleanup. Use exported sample/test data so real browser data is not at risk.</li>
+        <li>Test manual rate entry and provider refresh when network access is available. Confirm status feedback and that stored rates remain usable when refresh fails.</li>
+        <li>Export JSON, import it into a disposable browser profile or after a backup, then verify the app restores the state. Also check the responsive layout and light/dark appearance.</li>
+      </ul>
+      <p class="small">For future automated coverage, prioritize isolated model cases for conversion/summary calculations and browser-level flows for import/export and account/commitment editing.</p>
+    </section>
+  </main>
+  <footer>FinancePlanner developer onboarding · Keep this guide aligned with the implementation.</footer>
+</div>
+</body>
+</html>
