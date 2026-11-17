@@ -116,6 +116,22 @@
     return data;
   }
 
+  function hasData(dataState) {
+    const collections = [
+      'users',
+      'income',
+      'expenses',
+      'goals',
+      'debts',
+      'accounts',
+      'commitments',
+      'transactions'
+    ];
+    return collections.some(collectionName =>
+      Array.isArray(dataState[collectionName]) && dataState[collectionName].length
+    );
+  }
+
   function createPersistence() {
     let available = true;
     let savedAt = null;
@@ -129,6 +145,7 @@
     return {
       blank,
       normalize,
+      hasData,
       get available() {
         return available;
       },

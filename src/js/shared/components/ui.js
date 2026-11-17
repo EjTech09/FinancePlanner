@@ -9,7 +9,7 @@
    */
   const ICONS = window.HouseholdPlannerConstants.ui.ICONS;
 
-  function createUI({ h }) {
+  function createUI({ h, getState }) {
     const calcEl = calculateValue => {
       const calculationElement = h('span', { class: 'calc', 'data-calc': '' });
       calculationElement._u = () => {
@@ -70,7 +70,65 @@
         : null
     );
 
-    return Object.freeze({ calcEl, icon, tile, head, bento, segmentedControl, kpiTile });
+    const liv = (renderValue, tagName, className) => {
+      const liveElement = h(tagName || 'span', { class: className || '', 'data-calc': '' });
+      liveElement._u = () => {
+        liveElement.innerHTML = renderValue();
+      };
+      liveElement._u();
+      return liveElement;
+    };
+
+    const itemList = (collectionName, filterRecords, createItem, emptyMessage) => {
+      const itemListElement = h('div', { class: 'tx-card acc-list' });
+      getState()[collectionName].filter(filterRecords).forEach(record =>
+        itemListElement.append(createItem(record))
+      );
+      const emptyStateElement = liv(
+        () => itemListElement.children.length ? '' : `<p class="empty">${emptyMessage}</p>`,
+        'div'
+      );
+      return { list: itemListElement, empty: emptyStateElement };
+    };
+
+    const expandable = (item, header, detail) => {
+      const setOpen = isOpen => {
+        const shouldOpen = isOpen == null
+          ? header.getAttribute('aria-expanded') !== 'true'
+          : isOpen;
+        header.setAttribute('aria-expanded', String(shouldOpen));
+        detail.hidden = !shouldOpen;
+        item.classList.toggle('open', shouldOpen);
+      };
+      header.addEventListener('click', () => setOpen());
+      item._open = setOpen;
+      item.append(header, detail);
+    };
+
+    const sRow = (label, control) =>
+      h('label', { class: 'frow' }, h('span', { class: 'fl' }, label), control);
+
+    const sCalc = (label, calculateValue) =>
+      h('div', { class: 'frow' }, h('span', { class: 'fl' }, label), calcEl(calculateValue));
+
+    const sCol = (label, propertyName, inputType, additionalOptions) =>
+      Object.assign({ label, key: propertyName, type: inputType }, additionalOptions);
+
+    const totalsEl = calculateTotals => {
+      const totalsElement = h('div', { class: 'li-total', 'data-calc': '' });
+      totalsElement._u = () => {
+        totalsElement.innerHTML = calculateTotals()
+          .map(([label, value]) => `<div><small>${label}</small><b>${value}</b></div>`)
+          .join('');
+      };
+      totalsElement._u();
+      return totalsElement;
+    };
+
+    return Object.freeze({
+      calcEl, icon, tile, head, bento, segmentedControl, kpiTile,
+      liv, itemList, expandable, sRow, sCalc, sCol, totalsEl
+    });
   }
 
   window.HouseholdPlannerUI = Object.freeze({ create: createUI });

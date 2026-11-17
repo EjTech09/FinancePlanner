@@ -13,7 +13,7 @@
        RING_CENTER, RING_RADIUS, RING_VIEWBOX_SIZE, RING_DASH_THRESHOLD
      } = window.HouseholdPlannerConstants.dashboard;
     const { MONEY_EPSILON } = window.HouseholdPlannerConstants.domain;
-    const { state, CATS, money, num, sum, esc, cls, fmtDate, asOf, h, head, tile, hasData, startImport } = context;
+    const { state, CATS, money, num, sum, esc, cls, fmtDate, asOf, h, head, tile, hasData, importJson } = context;
 
     const dashView = startFromScratch => {
       const {
@@ -72,7 +72,7 @@
           h('h2', {}, 'Welcome'),
           h('p', { class: 'sub' }, 'Nothing is saved here yet. Import a JSON file you exported earlier, or start from scratch by adding the people who share this budget.'),
           h('div', { class: 'actions' },
-            h('button', { class: 'btn', type: 'button', onclick: startImport }, 'Import JSON'),
+            h('button', { class: 'btn', type: 'button', onclick: importJson }, 'Import JSON'),
             h('button', { class: 'btn plain', type: 'button', onclick: startFromScratch }, 'Start from scratch'))
         ));
       }

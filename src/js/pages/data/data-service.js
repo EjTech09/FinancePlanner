@@ -72,6 +72,22 @@
       exchangeRates.setStatus(`Removed the ${currency} exchange rate.`);
       return true;
     };
+    const importState = importedData => {
+      replaceState(persistence.normalize(importedData));
+      setLegacy(false);
+      state.ui.tab = PAGE_ID.DASHBOARD;
+      markDirty();
+    };
+    const clearLegacyData = () => {
+      replaceState(persistence.blank());
+      setLegacy(false);
+      state.ui.tab = PAGE_ID.DATA;
+      markDirty();
+    };
+    const keepLegacyData = () => {
+      setLegacy(false);
+      markDirty();
+    };
 
     return {
       storageMessage,
@@ -81,7 +97,10 @@
       currencyUsage,
       addExchangeRate,
       updateExchangeRate,
-      removeExchangeRate
+      removeExchangeRate,
+      importState,
+      clearLegacyData,
+      keepLegacyData
     };
   };
 })();

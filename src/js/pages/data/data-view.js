@@ -11,7 +11,7 @@
   window.HouseholdPlannerPages.dataView = (context, service) => {
     const DATA_CONSTANTS = window.HouseholdPlannerConstants.data;
     const {
-      state, h, head, tableView, tile, themeSegmentedControl, bento, startImport, exchangeRates
+      state, h, head, tableView, tile, themeSegmentedControl, bento, exchangeRates
     } = context;
 
     const dataView = actions => {
@@ -168,7 +168,7 @@
           'div',
           { class: 'actions' },
           h('button', { class: 'btn', type: 'button', onclick: actions.exportJson }, 'Export JSON'),
-          h('button', { class: 'btn plain', type: 'button', onclick: startImport }, 'Import JSON'),
+          h('button', { class: 'btn plain', type: 'button', onclick: actions.importJson }, 'Import JSON'),
           h('button', { class: 'btn danger', type: 'button', onclick: actions.clearData }, 'Clear everything')
         )
       );
@@ -181,6 +181,26 @@
       ));
       return el;
     };
+    dataView.renderLegacyBanner = actions => h(
+      'div',
+      { class: 'banner legacy', role: 'status' },
+      h('b', {}, 'Saved data found. '),
+      'This browser still has data saved by an earlier version of this page. Keep it, or clear it to start empty?',
+      h(
+        'div',
+        { class: 'b-actions' },
+        h('button', {
+          class: 'btn danger',
+          type: 'button',
+          onclick: actions.clearLegacyData
+        }, 'Clear it'),
+        h('button', {
+          class: 'btn plain',
+          type: 'button',
+          onclick: actions.keepLegacyData
+        }, 'Keep it')
+      )
+    );
     return dataView;
   };
 })();
