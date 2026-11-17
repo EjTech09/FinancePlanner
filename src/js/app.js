@@ -1,19 +1,19 @@
 const {
-  num,
-  toMonthlyAmount,
-  sum,
-  currencyRate,
-  compute
+  num: parseNumber,
+  toMonthlyAmount: convertToMonthlyAmount,
+  sum: sumValues,
+  currencyRate: getCurrencyRate,
+  compute: computeHouseholdSummary
 } = window.HouseholdPlannerModel;
 const {
-  uid,
-  $,
-  $$,
-  money,
-  moneyCur,
-  esc,
-  fmtDate,
-  h
+  uid: generateUniqueId,
+  $: querySelector,
+  $$: querySelectorAll,
+  money: formatMoney,
+  moneyCur: formatMoneyInCurrency,
+  esc: escapeHtml,
+  fmtDate: formatDate,
+  h: createElement
 } = window.HouseholdPlannerDom;
 
 (() => {
@@ -32,19 +32,19 @@ const DOMAIN_CONSTANTS = window.HouseholdPlannerConstants.domain;
 const persistence = window.HouseholdPlannerPersistence.create();
 let theme = persistence.loadTheme(APP_CONSTANTS.THEME_STORAGE_KEY);
 const {
-  calcEl,
-  icon,
-  tile,
-  head,
-  bento,
-  seg,
-  kpiTile
-} = window.HouseholdPlannerUI.create({ h });
+  calcEl: createCalculatedElement,
+  icon: renderIcon,
+  tile: createTile,
+  head: createPageHeader,
+  bento: createBentoLayout,
+  segmentedControl,
+  kpiTile: createKpiTile
+} = window.HouseholdPlannerUI.create({ h: createElement });
 
 function applyTheme() {
-  const root = document.documentElement;
-  if (theme === 'auto') root.removeAttribute('data-theme');
-  else root.setAttribute('data-theme', theme);
+  const rootElement = document.documentElement;
+  if (theme === 'auto') rootElement.removeAttribute('data-theme');
+  else rootElement.setAttribute('data-theme', theme);
 }
 
 function setTheme(nextTheme) {
@@ -66,41 +66,41 @@ function save() {
 }
 
 /* ---------- calculations ---------- */
-const today = new Date();
-const asOf = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-const rate = currency => currencyRate(currency, state.fx);
+const currentDate = new Date();
+const asOfDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate());
+const getRate = currency => getCurrencyRate(currency, state.fx);
 const accountCurrency = accountId =>
   (state.accounts.find(account => account.id === accountId) || {}).currency ||
   DOMAIN_CONSTANTS.DEFAULT_CURRENCY;
 const exchangeRates = window.HouseholdPlannerExchangeRates.create({
   getState: () => state,
   commit,
-  query: $
+  query: querySelector
 });
 const refreshExchangeRates = automatic => exchangeRates.refresh(automatic);
-let dirty = true, cache = null;
-function D() {
-  if (!dirty && cache) return cache;
-  cache = compute(state, asOf);
+let dirty = true, calculationCache = null;
+function getDerivedData() {
+  if (!dirty && calculationCache) return calculationCache;
+  calculationCache = computeHouseholdSummary(state, asOfDate);
   dirty = false;
-  return cache;
+  return calculationCache;
 }
-const CATS = APP_CONSTANTS.BUDGET_CATEGORIES;
-const cls = status =>
+const budgetCategories = APP_CONSTANTS.BUDGET_CATEGORIES;
+const getStatusClass = status =>
   /^(Behind|Over|Liabilities)/.test(status) ? 'bad' :
     /^(No |Set a)/.test(status) ? 'warn' :
       'ok';
-const nameOf = (collection, id) =>
-  (state[collection].find(item => item.id === id) || {}).name || '';
-const userOpts = () => [
+const getRecordName = (collectionName, recordId) =>
+  (state[collectionName].find(record => record.id === recordId) || {}).name || '';
+const getUserOptions = () => [
   { v: '', t: 'None' },
   ...state.users.map(user => ({ v: user.id, t: user.name || '(unnamed)' }))
 ];
-const accOpts = () => [
+const getAccountOptions = () => [
   { v: '', t: 'None' },
   ...state.accounts.map(account => ({ v: account.id, t: account.name || '(unnamed)' }))
 ];
-const targetOpts = () => [
+const getTargetOptions = () => [
   { v: DOMAIN_CONSTANTS.COMMITMENT_OTHER_TARGET, t: 'Something else' },
   {
     g: 'Debts',
@@ -111,7 +111,7 @@ const targetOpts = () => [
     items: state.goals.map(goal => ({ v: 'goal:' + goal.id, t: goal.name || '(unnamed)' }))
   }
 ];
-const curOpts = () => [
+const getCurrencyOptions = () => [
   DOMAIN_CONSTANTS.DEFAULT_CURRENCY,
   ...Object.keys(state.fx.rates)
 ].map(currency => ({ v: currency, t: currency }));
@@ -124,36 +124,40 @@ function commit() {
 }
 function refresh() {
   dirty = true;
-  $$('select[data-opts]').forEach(tableEditor.fillOptions);
-  $$('[data-calc]').forEach(el => el._u());
-  $$('tbody tr').forEach(row => row._check && row._check());
-  $$('.acc-item').forEach(item => item._check && item._check());
+  querySelectorAll('select[data-opts]').forEach(tableEditor.fillOptions);
+  querySelectorAll('[data-calc]').forEach(calculatedElement => calculatedElement._u());
+  querySelectorAll('tbody tr').forEach(row => row._check && row._check());
+  querySelectorAll('.acc-item').forEach(item => item._check && item._check());
   updateFoot();
 }
-function field(col, row) {
-  let el;
-  if (col.type === 'select') {
-    el = h('select', { 'data-opts': '', 'aria-label': col.label });
-    el._row = row;
-    el._key = col.key;
-    el._opts = col.opts;
-    tableEditor.fillOptions(el);
+function field(columnConfig, record) {
+  let inputElement;
+  if (columnConfig.type === 'select') {
+    inputElement = createElement('select', { 'data-opts': '', 'aria-label': columnConfig.label });
+    inputElement._row = record;
+    inputElement._key = columnConfig.key;
+    inputElement._opts = columnConfig.opts;
+    tableEditor.fillOptions(inputElement);
   } else {
-    el = h('input', { type: col.type, 'aria-label': col.label, placeholder: col.ph || false });
-    if (col.type === 'number') {
-      el.step = 'any';
-      el.setAttribute('inputmode', 'decimal');
+    inputElement = createElement('input', { type: columnConfig.type, 'aria-label': columnConfig.label, placeholder: columnConfig.ph || false });
+    if (columnConfig.type === 'number') {
+      inputElement.step = 'any';
+      inputElement.setAttribute('inputmode', 'decimal');
     }
-    el.value = row[col.key] ?? '';
+    inputElement.value = record[columnConfig.key] ?? '';
   }
-  if (col.w) el.style.minWidth = col.w + 'px';
-  el.addEventListener('input', () => {
-    const previous = row[col.key];
-    row[col.key] = col.type === 'number' ? (el.value === '' ? '' : parseFloat(el.value)) : el.value;
-    if (col.onChange) col.onChange(previous, row[col.key], row);
+  if (columnConfig.w) inputElement.style.minWidth = columnConfig.w + 'px';
+  inputElement.addEventListener('input', () => {
+    const previousValue = record[columnConfig.key];
+    record[columnConfig.key] = columnConfig.type === 'number'
+      ? (inputElement.value === '' ? '' : parseFloat(inputElement.value))
+      : inputElement.value;
+    if (columnConfig.onChange) {
+      columnConfig.onChange(previousValue, record[columnConfig.key], record);
+    }
     commit();
   });
-  return el;
+  return inputElement;
 }
 
 //Purpose: Detach references to a deleted item from the state, based on the collection and ID provided.
@@ -214,50 +218,84 @@ function detach(collection, id) {
   }
 }
 const tableEditor = window.HouseholdPlannerTableEditor.create({
-  $,
-  $$,
-  h,
-  calcEl,
+  $: querySelector,
+  $$: querySelectorAll,
+  h: createElement,
+  calcEl: createCalculatedElement,
   field,
   commit,
   detach,
-  uid,
+  uid: generateUniqueId,
   getState: () => state,
   markDirty: () => { dirty = true; },
-  tile
+  tile: createTile
 });
 const tableView = tableEditor.tableView;
 function updateFoot() {}
-const themeSeg = () => seg([['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']], theme, setTheme, 'Appearance');
-const sRow = (label, ctrl) => h('label', { class: 'frow' }, h('span', { class: 'fl' }, label), ctrl);
-const sCalc = (label, fn) => h('div', { class: 'frow' }, h('span', { class: 'fl' }, label), calcEl(fn));
-const sCol = (label, key, type, extra) => Object.assign({ label, key, type }, extra);
+const themeSegmentedControl = () => segmentedControl([['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']], theme, setTheme, 'Appearance');
+const createFormRow = (label, control) => createElement('label', { class: 'frow' }, createElement('span', { class: 'fl' }, label), control);
+const createCalculationRow = (label, calculateValue) => createElement('div', { class: 'frow' }, createElement('span', { class: 'fl' }, label), createCalculatedElement(calculateValue));
+const createTableColumn = (label, propertyName, inputType, additionalOptions) =>
+  Object.assign({ label, key: propertyName, type: inputType }, additionalOptions);
 
 //Purpose: Create a totals element that displays calculated totals based on the provided getTotals function.
-function totalsEl(getTotals) {
-  const totals = h('div', { class: 'li-total', 'data-calc': '' });
-  totals._u = () => {
-    totals.innerHTML = getTotals()
+function createTotalsElement(calculateTotals) {
+  const totalsElement = createElement('div', { class: 'li-total', 'data-calc': '' });
+  totalsElement._u = () => {
+    totalsElement.innerHTML = calculateTotals()
       .map(([label, value]) => `<div><small>${label}</small><b>${value}</b></div>`)
       .join('');
   };
-  totals._u();
-  return totals;
+  totalsElement._u();
+  return totalsElement;
 }
 
 const markDirty = () => { dirty = true; };
-const setLegacy = value => { legacy = value; };
+const setLegacy = legacyValue => { legacy = legacyValue; };
 const replaceState = nextState => {
   Object.keys(state).forEach(key => delete state[key]);
   Object.assign(state, nextState);
 };
 const pageContext = {
-  state, D, CATS, cls, nameOf, userOpts, accOpts, targetOpts, curOpts,
-  rate, accountCurrency, num, toMonthlyAmount, sum, money, moneyCur, esc, fmtDate, asOf,
-  h, $, $$, uid, calcEl, icon, tile, head, bento, seg, kpiTile,
+  state,
+  D: getDerivedData,
+  CATS: budgetCategories,
+  cls: getStatusClass,
+  nameOf: getRecordName,
+  userOpts: getUserOptions,
+  accOpts: getAccountOptions,
+  targetOpts: getTargetOptions,
+  curOpts: getCurrencyOptions,
+  rate: getRate,
+  accountCurrency,
+  num: parseNumber,
+  toMonthlyAmount: convertToMonthlyAmount,
+  sum: sumValues,
+  money: formatMoney,
+  moneyCur: formatMoneyInCurrency,
+  esc: escapeHtml,
+  fmtDate: formatDate,
+  asOf: asOfDate,
+  h: createElement,
+  $: querySelector,
+  $$: querySelectorAll,
+  uid: generateUniqueId,
+  calcEl: createCalculatedElement,
+  icon: renderIcon,
+  tile: createTile,
+  head: createPageHeader,
+  bento: createBentoLayout,
+  segmentedControl,
+  kpiTile: createKpiTile,
   tableView, field, detach, commit, save, render, hasData, startImport,
-  persistence, themeSeg, markDirty, replaceState, setLegacy,
-  liv, itemList, expandable, totalsEl, sRow, sCalc, sCol,
+  persistence, themeSegmentedControl, markDirty, replaceState, setLegacy,
+  liv: createLiveValueElement,
+  itemList: createItemList,
+  expandable,
+  totalsEl: createTotalsElement,
+  sRow: createFormRow,
+  sCalc: createCalculationRow,
+  sCol: createTableColumn,
   refreshExchangeRates, exchangeRates
 };
 const transactionPage = window.HouseholdPlannerPages.transactions(pageContext);
@@ -275,27 +313,27 @@ const pageRenderers = {
   [APP_CONSTANTS.PAGE_ID.TRANSACTIONS]: transactionPage.render,
   [APP_CONSTANTS.PAGE_ID.DATA]: dataPage
 };
-const TABS = APP_CONSTANTS.NAV_TABS.map(([id, label, page, icon, shortLabel]) =>
-  [id, label, pageRenderers[page], icon, shortLabel]
+const NAVIGATION_TABS = APP_CONSTANTS.NAV_TABS.map(([id, label, page, iconName, shortLabel]) =>
+  [id, label, pageRenderers[page], iconName, shortLabel]
 );
 
 /* ---------- shared list components ---------- */
-function liv(render, tag, className) {
-  const element = h(tag || 'span', { class: className || '', 'data-calc': '' });
-  element._u = () => {
-    element.innerHTML = render();
+function createLiveValueElement(renderValue, tagName, className) {
+  const liveElement = createElement(tagName || 'span', { class: className || '', 'data-calc': '' });
+  liveElement._u = () => {
+    liveElement.innerHTML = renderValue();
   };
-  element._u();
-  return element;
+  liveElement._u();
+  return liveElement;
 }
-function itemList(collection, filter, makeItem, emptyMessage) {
-  const list = h('div', { class: 'tx-card acc-list' });
-  state[collection].filter(filter).forEach(row => list.append(makeItem(row)));
-  const empty = liv(
-    () => list.children.length ? '' : `<p class="empty">${emptyMessage}</p>`,
+function createItemList(collectionName, filterRecords, createItem, emptyMessage) {
+  const itemListElement = createElement('div', { class: 'tx-card acc-list' });
+  state[collectionName].filter(filterRecords).forEach(record => itemListElement.append(createItem(record)));
+  const emptyStateElement = createLiveValueElement(
+    () => itemListElement.children.length ? '' : `<p class="empty">${emptyMessage}</p>`,
     'div'
   );
-  return { list, empty };
+  return { list: itemListElement, empty: emptyStateElement };
 }
 function expandable(item, header, detail) {
   const setOpen = isOpen => {
@@ -315,20 +353,20 @@ function expandable(item, header, detail) {
 
 
 /* ---------- import ---------- */
-const importInput = h('input', {
+const importFileInput = createElement('input', {
   type: 'file',
   accept: 'application/json,.json',
   hidden: true,
   'aria-label': 'Import JSON file'
 });
-importInput.addEventListener('change', () => {
-  const file = importInput.files[0];
-  if (!file) return;
+importFileInput.addEventListener('change', () => {
+  const selectedFile = importFileInput.files[0];
+  if (!selectedFile) return;
 
-  const reader = new FileReader();
-  reader.onload = () => {
+  const fileReader = new FileReader();
+  fileReader.onload = () => {
     try {
-      const importedData = JSON.parse(reader.result);
+      const importedData = JSON.parse(fileReader.result);
       if (
         typeof importedData !== 'object'
         || importedData === null
@@ -347,22 +385,22 @@ importInput.addEventListener('change', () => {
       save();
       render();
       window.scrollTo(0, 0);
-    } catch (error) {
+    } catch (parseError) {
       alert('That file could not be read. Choose a JSON file exported from this page.');
     }
   };
-  reader.readAsText(file);
-  importInput.value = '';
+  fileReader.readAsText(selectedFile);
+  importFileInput.value = '';
 });
-document.body.append(importInput);
+document.body.append(importFileInput);
 
 //Purpose: Render the dashboard overview page, which summarizes the current month’s cash position, budget allocation, goal debt progress, and per-person financial health from the model data.
 function startImport() {
-  importInput.click();
+  importFileInput.click();
 }
 
 //Purpose: Check if there is any data in the state, including users, income, expenses, goals, debts, accounts, commitments, or transactions.
-function hasData(data = state) {
+function hasData(dataState = state) {
   const collections = [
     'users',
     'income',
@@ -373,7 +411,7 @@ function hasData(data = state) {
     'commitments',
     'transactions'
   ];
-  return collections.some(collection => data[collection].length);
+  return collections.some(collectionName => dataState[collectionName].length);
 }
 
 /* ---------- shell ---------- */
@@ -381,13 +419,13 @@ function hasData(data = state) {
 // Navigation metadata is centralized; this binds each tab to its page renderer.
 //Purpose: Render the navigation buttons for each tab, highlighting the currently selected tab and allowing users to switch between tabs while saving the state and re-rendering the content.
 function renderNav() {
-  const nav = $('#nav');
-  nav.innerHTML = '';
-  nav.append(h('div', { class: 'brand' }, 'Household planner'));
+  const navigationElement = querySelector('#nav');
+  navigationElement.innerHTML = '';
+  navigationElement.append(createElement('div', { class: 'brand' }, 'Household planner'));
 
   //Purpose: Render the navigation buttons for each tab, highlighting the currently selected tab and allowing users to switch between tabs while saving the state and re-rendering the content.
-  for (const [id, label, , iconName, shortLabel] of TABS) {
-    const button = h('button', {
+  for (const [id, label, , iconName, shortLabel] of NAVIGATION_TABS) {
+    const navigationButton = createElement('button', {
       type: 'button',
       'aria-current': state.ui.tab === id ? 'page' : false,
       onclick: () => {
@@ -397,29 +435,29 @@ function renderNav() {
         window.scrollTo(0, 0);
       }
     });
-    button.innerHTML = icon(iconName);
-    button.append(
-      h('span', { class: 'lbl-long' }, label),
-      h('span', { class: 'lbl-short' }, shortLabel)
+    navigationButton.innerHTML = renderIcon(iconName);
+    navigationButton.append(
+      createElement('span', { class: 'lbl-long' }, label),
+      createElement('span', { class: 'lbl-short' }, shortLabel)
     );
-    nav.append(button);
+    navigationElement.append(navigationButton);
   }
   const saveStatus = persistence.available ? 'Saved on this device' : 'Not saving';
-  nav.append(h(
+  navigationElement.append(createElement(
     'div',
     { class: 'nav-foot' },
-    themeSeg(),
-    h('span', {}, saveStatus)
+    themeSegmentedControl(),
+    createElement('span', {}, saveStatus)
   ));
 }
 
 //Purpose: Render the main content area based on the current state and selected tab, including banners for saving status and legacy data.
 function render() {
   dirty = true;
-  const main = $('#main');
-  main.innerHTML = '';
+  const mainElement = querySelector('#main');
+  mainElement.innerHTML = '';
   if (!persistence.available) {
-    main.append(h(
+    mainElement.append(createElement(
       'div',
       { class: 'banner', role: 'status' },
       'Saving is blocked here, so changes will be lost when you close this page. Download the file and open it in your browser to save.'
@@ -445,20 +483,20 @@ function render() {
     };
 
     //Purpose: If legacy data is detected, show a banner prompting the user to either clear it or keep it, with appropriate actions for each choice.
-    main.append(h(
+    mainElement.append(createElement(
       'div',
       { class: 'banner legacy', role: 'status' },
-      h('b', {}, 'Saved data found. '),
+      createElement('b', {}, 'Saved data found. '),
       'This browser still has data saved by an earlier version of this page. Keep it, or clear it to start empty?',
-      h(
+      createElement(
         'div',
         { class: 'b-actions' },
-        h('button', {
+        createElement('button', {
           class: 'btn danger',
           type: 'button',
           onclick: clearLegacyData
         }, 'Clear it'),
-        h('button', {
+        createElement('button', {
           class: 'btn plain',
           type: 'button',
           onclick: keepLegacyData
@@ -467,8 +505,8 @@ function render() {
     ));
   }
 
-  const selectedTab = TABS.find(tab => tab[0] === state.ui.tab) || TABS[0];
-  main.append(selectedTab[2]());
+  const selectedTab = NAVIGATION_TABS.find(tab => tab[0] === state.ui.tab) || NAVIGATION_TABS[0];
+  mainElement.append(selectedTab[2]());
   renderNav();
 }
 render();

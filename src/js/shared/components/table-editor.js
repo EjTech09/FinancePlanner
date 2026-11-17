@@ -8,170 +8,192 @@
    * toggles, and consistent option-population behavior across the app.
    */
   function createTableEditor({
-    $,
-    $$,
-    h,
-    calcEl,
-    field,
+    $: querySelector,
+    $$: querySelectorAll,
+    h: createElement,
+    calcEl: createCalculatedElement,
+    field: createField,
     commit,
-    detach,
-    uid,
+    detach: detachReferences,
+    uid: generateUniqueId,
     getState,
     markDirty,
-    tile
+    tile: createTile
   }) {
-    function fillOptions(select) {
-      const row = select._row;
-      const key = select._key;
-      const currentValue = row[key] ?? '';
-      select.innerHTML = '';
-      const makeOption = option => h('option', { value: option.v }, option.t);
+    function fillOptions(selectElement) {
+      const record = selectElement._row;
+      const propertyName = selectElement._key;
+      const currentValue = record[propertyName] ?? '';
+      selectElement.innerHTML = '';
+      const createOptionElement = optionDefinition =>
+        createElement('option', { value: optionDefinition.v }, optionDefinition.t);
 
-      for (const option of select._opts()) {
-        if (option.g) {
-          if (option.items.length) {
-            select.append(h('optgroup', { label: option.g }, option.items.map(makeOption)));
+      for (const optionDefinition of selectElement._opts()) {
+        if (optionDefinition.g) {
+          if (optionDefinition.items.length) {
+            selectElement.append(createElement(
+              'optgroup',
+              { label: optionDefinition.g },
+              optionDefinition.items.map(createOptionElement)
+            ));
           }
         } else {
-          select.append(makeOption(option));
+          selectElement.append(createOptionElement(optionDefinition));
         }
       }
 
-      select.value = currentValue;
-      if (select.value !== currentValue) select.selectedIndex = 0;
+      selectElement.value = currentValue;
+      if (selectElement.value !== currentValue) selectElement.selectedIndex = 0;
     }
 
-    const chevron = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
+    const DETAILS_CHEVRON_SVG = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
 
-    function setOpen(row, isOpen) {
-      row.classList.toggle('open', isOpen);
-      const button = $('.chev', row);
-      if (button) {
-        button.setAttribute('aria-expanded', String(isOpen));
-        button.setAttribute('aria-label', isOpen ? 'Hide details' : 'Show details');
+    function setOpen(tableRow, shouldOpen) {
+      tableRow.classList.toggle('open', shouldOpen);
+      const detailsButton = querySelector('.chev', tableRow);
+      if (detailsButton) {
+        detailsButton.setAttribute('aria-expanded', String(shouldOpen));
+        detailsButton.setAttribute('aria-label', shouldOpen ? 'Hide details' : 'Show details');
       }
     }
 
-    function tableView(options) {
-      const state = getState();
-      const role = column => (options.roles && options.roles[column.label]) || 'd';
-      const tbody = h('tbody');
-      const addRow = data => {
-        const tableRow = h('tr', options.compact ? { class: 'compact' } : {});
-        for (const column of options.cols) {
-          const cell = h('td', {
-            class: column.num || column.type === 'number' ? 'num' : '',
-            'data-label': column.label,
-            'data-m': role(column)
+    function tableView(tableConfig) {
+      const currentState = getState();
+      const getColumnRole = columnConfig =>
+        (tableConfig.roles && tableConfig.roles[columnConfig.label]) || 'd';
+      const tableBody = createElement('tbody');
+      const appendRow = rowRecord => {
+        const tableRow = createElement('tr', tableConfig.compact ? { class: 'compact' } : {});
+        for (const columnConfig of tableConfig.cols) {
+          const tableCell = createElement('td', {
+            class: columnConfig.num || columnConfig.type === 'number' ? 'num' : '',
+            'data-label': columnConfig.label,
+            'data-m': getColumnRole(columnConfig)
           });
-          cell.append(column.calc ? calcEl(() => column.calc(data)) : field(column, data));
-          tableRow.append(cell);
+          tableCell.append(
+            columnConfig.calc
+              ? createCalculatedElement(() => columnConfig.calc(rowRecord))
+              : createField(columnConfig, rowRecord)
+          );
+          tableRow.append(tableCell);
         }
-        const detailsButton = h('button', {
+        const detailsButton = createElement('button', {
           class: 'chev',
           type: 'button',
           'aria-expanded': 'false',
           'aria-label': 'Show details',
           onclick: () => setOpen(tableRow, !tableRow.classList.contains('open'))
         });
-        detailsButton.innerHTML = chevron;
-        tableRow.append(h('td', { class: 'exp' }, detailsButton));
+        detailsButton.innerHTML = DETAILS_CHEVRON_SVG;
+        tableRow.append(createElement('td', { class: 'exp' }, detailsButton));
 
-        const deleteButton = h('button', {
+        const deleteButton = createElement('button', {
           class: 'x',
           type: 'button',
           'aria-label': 'Delete this row',
           onclick: () => {
             if (!confirm('Delete this row? This cannot be undone.')) return;
-            const currentState = getState();
-            currentState[options.coll] = currentState[options.coll]
-              .filter(item => item !== data);
-            detach(options.coll, data.id);
+            const latestState = getState();
+            latestState[tableConfig.coll] = latestState[tableConfig.coll]
+              .filter(record => record !== rowRecord);
+            detachReferences(tableConfig.coll, rowRecord.id);
             tableRow.remove();
             commit();
           }
-        }, h('span', { class: 'xi' }, '\u00d7'), h('span', { class: 'xt' }, 'Delete this row'));
-        tableRow.append(h('td', { class: 'act' }, deleteButton));
+        }, createElement('span', { class: 'xi' }, '\u00d7'), createElement('span', { class: 'xt' }, 'Delete this row'));
+        tableRow.append(createElement('td', { class: 'act' }, deleteButton));
 
-        if (options.filter) {
+        if (tableConfig.filter) {
           tableRow._check = () => {
-            if (!options.filter(data)) tableRow.remove();
+            if (!tableConfig.filter(rowRecord)) tableRow.remove();
           };
         }
 
-        tbody.append(tableRow);
+        tableBody.append(tableRow);
         return tableRow;
       };
-      state[options.coll].filter(options.filter || (() => true)).forEach(addRow);
+      currentState[tableConfig.coll]
+        .filter(tableConfig.filter || (() => true))
+        .forEach(appendRow);
 
-      const headerRow = h(
+      const headerRow = createElement(
         'tr',
         {},
-        options.cols.map(column => h('th', {
-          class: column.num || column.type === 'number' ? 'num' : ''
-        }, column.label)),
-        h('th', {}, h('span', { style: 'position:absolute;left:-9999px' }, 'Delete'))
+        tableConfig.cols.map(columnConfig => createElement('th', {
+          class: columnConfig.num || columnConfig.type === 'number' ? 'num' : ''
+        }, columnConfig.label)),
+        createElement('th', {}, createElement('span', { style: 'position:absolute;left:-9999px' }, 'Delete'))
       );
-      const table = h('table', {}, h('thead', {}, headerRow), tbody);
-      if (options.cols.some(column => column.total)) {
-        const totalCells = options.cols.map((column, index) => {
-          const isNumeric = column.num || column.type === 'number';
-          const isLabel = !column.total && index === 0;
-          const cellClass = (isNumeric ? 'num' : '') + (isLabel ? ' tl' : '');
-          const label = column.total ? column.label : false;
-          const content = column.total
-            ? calcEl(column.total)
-            : index === 0 ? 'Total' : '';
+      const tableElement = createElement('table', {}, createElement('thead', {}, headerRow), tableBody);
+      if (tableConfig.cols.some(columnConfig => columnConfig.total)) {
+        const totalCells = tableConfig.cols.map((columnConfig, columnIndex) => {
+          const isNumericColumn = columnConfig.num || columnConfig.type === 'number';
+          const isFirstColumnLabel = !columnConfig.total && columnIndex === 0;
+          const cellClass = (isNumericColumn ? 'num' : '') + (isFirstColumnLabel ? ' tl' : '');
+          const totalLabel = columnConfig.total ? columnConfig.label : false;
+          const cellContent = columnConfig.total
+            ? createCalculatedElement(columnConfig.total)
+            : columnIndex === 0 ? 'Total' : '';
 
-          return h('td', { class: cellClass, 'data-label': label }, content);
+          return createElement('td', { class: cellClass, 'data-label': totalLabel }, cellContent);
         });
-        table.append(h('tfoot', {}, h('tr', {}, totalCells, h('td'))));
+        tableElement.append(createElement(
+          'tfoot',
+          {},
+          createElement('tr', {}, totalCells, createElement('td'))
+        ));
       }
 
-      const addButton = h('button', {
+      const addButton = createElement('button', {
         class: 'add',
         type: 'button',
         onclick: () => {
-          const currentState = getState();
-          const row = Object.assign({ id: uid() }, options.blank());
-          currentState[options.coll].push(row);
+          const latestState = getState();
+          const newRecord = Object.assign({ id: generateUniqueId() }, tableConfig.blank());
+          latestState[tableConfig.coll].push(newRecord);
           markDirty();
 
-          const tableRow = addRow(row);
+          const tableRow = appendRow(newRecord);
           setOpen(tableRow, true);
-          if (toggleButton) toggleButton.hidden = false;
+          if (detailsToggleButton) detailsToggleButton.hidden = false;
           commit();
 
-          const firstField = $('input,select', tableRow);
+          const firstField = querySelector('input,select', tableRow);
           if (firstField) firstField.focus();
         }
-      }, options.addLabel);
-      const hasDetailColumns = options.cols.some(column => role(column) === 'd');
-      const toggleButton = hasDetailColumns ? h('button', {
+      }, tableConfig.addLabel);
+      const hasDetailColumns = tableConfig.cols.some(columnConfig => getColumnRole(columnConfig) === 'd');
+      const detailsToggleButton = hasDetailColumns ? createElement('button', {
         class: 'm-toggle',
         type: 'button',
         onclick: () => {
-          const rows = $$('tbody tr', table);
-          const allOpen = rows.length > 0 && rows.every(row => row.classList.contains('open'));
-          rows.forEach(row => setOpen(row, !allOpen));
-          toggleButton.textContent = allOpen ? 'Show all details' : 'Hide details';
+          const tableRows = querySelectorAll('tbody tr', tableElement);
+          const allRowsOpen = tableRows.length > 0 &&
+            tableRows.every(tableRow => tableRow.classList.contains('open'));
+          tableRows.forEach(tableRow => setOpen(tableRow, !allRowsOpen));
+          detailsToggleButton.textContent = allRowsOpen ? 'Show all details' : 'Hide details';
         }
       }, 'Show all details') : null;
 
-      if (toggleButton && !getState()[options.coll].filter(options.filter || (() => true)).length) {
-        toggleButton.hidden = true;
+      if (
+        detailsToggleButton &&
+        !getState()[tableConfig.coll].filter(tableConfig.filter || (() => true)).length
+      ) {
+        detailsToggleButton.hidden = true;
       }
 
-      const sheet = h('div', { class: 'sheet scroll' }, table);
-      if (options.bare) return h('div', {}, toggleButton, sheet, addButton);
+      const tableSheet = createElement('div', { class: 'sheet scroll' }, tableElement);
+      if (tableConfig.bare) {
+        return createElement('div', {}, detailsToggleButton, tableSheet, addButton);
+      }
 
-      return tile(
-        options.span || 12,
+      return createTile(
+        tableConfig.span || 12,
         {},
-        h('h2', {}, options.title),
-        options.note ? h('p', { class: 'sub' }, options.note) : null,
-        toggleButton,
-        sheet,
+        createElement('h2', {}, tableConfig.title),
+        tableConfig.note ? createElement('p', { class: 'sub' }, tableConfig.note) : null,
+        detailsToggleButton,
+        tableSheet,
         addButton
       );
     }

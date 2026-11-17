@@ -11,7 +11,7 @@
   window.HouseholdPlannerPages.dataView = (context, service) => {
     const DATA_CONSTANTS = window.HouseholdPlannerConstants.data;
     const {
-      state, h, head, tableView, tile, themeSeg, bento, startImport, exchangeRates
+      state, h, head, tableView, tile, themeSegmentedControl, bento, startImport, exchangeRates
     } = context;
 
     const dataView = actions => {
@@ -43,7 +43,7 @@
         {},
         h('h2', {}, 'Appearance'),
         h('p', { class: 'sub' }, 'Auto follows your device. Light and Dark stay as you set them.'),
-        h('div', { style: 'margin-top:16px' }, themeSeg())
+        h('div', { style: 'margin-top:16px' }, themeSegmentedControl())
       );
       const categoryInput = h('input', {
         type: 'text',

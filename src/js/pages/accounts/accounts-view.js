@@ -15,7 +15,7 @@
     const ACCOUNT_CONSTANTS = window.HouseholdPlannerConstants.accounts;
     const COMMITMENT_KIND = ACCOUNT_CONSTANTS.COMMITMENT_KIND;
     const { MONEY_EPSILON } = DOMAIN;
-    const { state, D, h, $, money, moneyCur, num, sum, esc, rate, accountCurrency, nameOf, cls, userOpts, accOpts, targetOpts, curOpts, sRow, sCalc, sCol, field, seg, bento, tile, head, kpiTile, txIcon, liv, itemList, expandable, totalsEl } = context;
+    const { state, D, h, $, money, moneyCur, num, sum, esc, rate, accountCurrency, nameOf, cls, userOpts, accOpts, targetOpts, curOpts, sRow, sCalc, sCol, field, segmentedControl, bento, tile, head, kpiTile, txIcon, liv, itemList, expandable, totalsEl } = context;
 
     /* ---------- Shared-state reads and derived values ---------- */
     /**
@@ -254,7 +254,7 @@
       if (countAccounts(DOMAIN.FILTER_NONE)) {
         filterItems.push([DOMAIN.FILTER_NONE, 'No user', countAccounts(DOMAIN.FILTER_NONE)]);
       }
-      const filter = seg(
+      const filter = segmentedControl(
         filterItems,
         selectedFilter,
         actions.setAccountFilter,

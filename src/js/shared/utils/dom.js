@@ -7,17 +7,19 @@
    * Centralises element creation, ID generation, safe HTML escaping, and common
    * money/date formatting helpers so pages can share a consistent rendering API.
    */
-  let nextId = 0;
-  const uid = () => 'i' + Date.now().toString(36) + (nextId++).toString(36);
-  const $ = (selector, root = document) => root.querySelector(selector);
-  const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
-  const money = (amount, digits = 2) => new Intl.NumberFormat('en-NZ', {
+  let nextGeneratedId = 0;
+  const generateUniqueId = () => 'i' + Date.now().toString(36) + (nextGeneratedId++).toString(36);
+  const querySelector = (selector, rootElement = document) => rootElement.querySelector(selector);
+  const querySelectorAll = (selector, rootElement = document) => [...rootElement.querySelectorAll(selector)];
+
+  const formatMoney = (amount, fractionDigits = 2) => new Intl.NumberFormat('en-NZ', {
     style: 'currency',
     currency: window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY,
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits
   }).format(amount);
-  const moneyCur = (amount, currency) => new Intl.NumberFormat('en-NZ', {
+
+  const formatMoneyInCurrency = (amount, currency) => new Intl.NumberFormat('en-NZ', {
     style: 'currency',
     currency: /^[A-Z]{3}$/.test(currency || '')
       ? currency
@@ -25,44 +27,46 @@
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount);
-  const esc = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;',
     '<': '&lt;',
     '>': '&gt;',
     '"': '&quot;',
     "'": '&#39;'
   }[character]));
-  const fmtDate = date => date.toLocaleDateString('en-NZ', {
+  
+  const formatDate = dateValue => dateValue.toLocaleDateString('en-NZ', {
     day: 'numeric',
     month: 'short',
     year: 'numeric'
   });
 
-  function h(tag, attrs, ...kids) {
-    const element = document.createElement(tag);
-    for (const key in attrs || {}) {
-      const value = attrs[key];
-      if (key === 'class') element.className = value;
-      else if (key.startsWith('on')) element.addEventListener(key.slice(2), value);
-      else if (value !== false && value != null) {
-        element.setAttribute(key, value === true ? '' : value);
+  function createElement(tagName, attributes, ...children) {
+    const createdElement = document.createElement(tagName);
+    for (const attributeName in attributes || {}) {
+      const attributeValue = attributes[attributeName];
+      if (attributeName === 'class') createdElement.className = attributeValue;
+      else if (attributeName.startsWith('on')) createdElement.addEventListener(attributeName.slice(2), attributeValue);
+      else if (attributeValue !== false && attributeValue != null) {
+        createdElement.setAttribute(attributeName, attributeValue === true ? '' : attributeValue);
       }
     }
-    for (const child of kids.flat()) {
-      if (child == null || child === false) continue;
-      element.append(child.nodeType ? child : document.createTextNode(child));
+    for (const childNode of children.flat()) {
+      if (childNode == null || childNode === false) continue;
+      createdElement.append(childNode.nodeType ? childNode : document.createTextNode(childNode));
     }
-    return element;
+    return createdElement;
   }
 
   window.HouseholdPlannerDom = Object.freeze({
-    uid,
-    $,
-    $$,
-    money,
-    moneyCur,
-    esc,
-    fmtDate,
-    h
+    uid: generateUniqueId,
+    $: querySelector,
+    $$: querySelectorAll,
+    money: formatMoney,
+    moneyCur: formatMoneyInCurrency,
+    esc: escapeHtml,
+    fmtDate: formatDate,
+    h: createElement
   });
 })();

@@ -9,6 +9,7 @@
    */
   window.HouseholdPlannerPages = window.HouseholdPlannerPages || {};
   window.HouseholdPlannerPages.planView = (context, service) => {
+
     const PLAN_CONSTANTS = window.HouseholdPlannerConstants.plan;
     const DEFAULT_CURRENCY = window.HouseholdPlannerConstants.domain.DEFAULT_CURRENCY;
     const { MONEY_EPSILON } = window.HouseholdPlannerConstants.domain;
@@ -21,6 +22,7 @@
     const periodAmount = amount => num(amount) * period()[2];
     const periodUnit = () => period()[3];
     const frequencyUnit = item => frequency(item)[3];
+    
     const frequencyControl = (item, actions) => {
       const select = h('select', { 'aria-label': 'Frequency' }, PLAN_CONSTANTS.PERIODS.map(
         ([value, label]) => h('option', { value }, label)
@@ -29,6 +31,7 @@
       select.addEventListener('change', () => actions.setFrequency(item, select.value));
       return select;
     };
+
     const frequencyAmountRow = (item, key, label, suffix = '') => {
       const input = field(sCol(label, key, 'number'), item);
       const amountLabel = liv(() => {
@@ -54,6 +57,7 @@
         <div class="m-bar" role="img" aria-label="${money(periodAmount(used), 0)} allocated of ${money(periodAmount(limit), 0)}"><i class="${over ? 'over' : ''}" style="width:${percentage}%"></i></div>
         <div class="m-sub">Allocated ${money(periodAmount(used))} of ${money(periodAmount(limit))} per ${periodUnit()}</div>`;
     };
+
     const planView = actions => {
       const el = h('div', {}, head(
         'Plan',
@@ -194,12 +198,15 @@
     };
 
     const kindIcon = kind => `<span class="tx-ic" style="--tc:var(${PLAN_CONSTANTS.KIND_COLOR[kind]})"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PLAN_CONSTANTS.KIND_ICON[kind]}</svg></span>`;
+    
     function moneyItem(row, kind, labels, collection, shareOfSection, actions) {
       const nameKey = kind === 'income' ? 'source' : 'name';
       const itemTitle = kind === 'income' ? 'income' : 'expense';
+
       const amountInNZD = () => num(row.amount) * rate(row.currency || DEFAULT_CURRENCY);
       const monthlyAmountInNZD = () => toMonthlyAmount(amountInNZD(), row.frequency);
       const isForeignCurrency = () => row.currency && row.currency !== DEFAULT_CURRENCY;
+      
       const item = h('div', { class: 'acc-item', 'data-id': row.id });
       const header = h('button', { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
         liv(() => kindIcon(kind), 'span', 'li-ic'),
@@ -253,6 +260,9 @@
       expandable(item, header, detail);
       return item;
     }
+
+
+    //START: INCOME SECTION
     const incItem = (row, actions) => moneyItem(row, 'income', {
       untitled: 'Untitled income',
       field: 'Source',
@@ -260,13 +270,7 @@
       del: 'Delete income',
       currency: true
     }, 'income', false, actions);
-    const expItem = (row, actions) => moneyItem(row, row.category, {
-      untitled: 'Untitled expense',
-      field: 'Expense',
-      ph: 'e.g. Groceries',
-      del: 'Delete expense',
-      section: row.category === 'essential' ? 'essential expenses' : 'discretionary expenses'
-    }, 'expenses', true, actions);
+
     function incomeBody(actions) {
       const { list, empty } = itemList('income', () => true, row => incItem(row, actions), 'No income yet. Add the first source.');
       return h(
@@ -280,6 +284,18 @@
         h('button', { class: 'add', type: 'button', onclick: () => actions.addIncome(list) }, 'Add income')
       );
     }
+    //END: INCOME SECTION
+
+
+    //START: EXPENSES SECTION
+    const expItem = (row, actions) => moneyItem(row, row.category, {
+      untitled: 'Untitled expense',
+      field: 'Expense',
+      ph: 'e.g. Groceries',
+      del: 'Delete expense',
+      section: row.category === 'essential' ? 'essential expenses' : 'discretionary expenses'
+    }, 'expenses', true, actions);
+
     function expenseBody(category, addLabel, actions) {
       const { list, empty } = itemList(
         'expenses',
@@ -299,7 +315,9 @@
         h('button', { class: 'add', type: 'button', onclick: () => actions.addExpense(category, list) }, addLabel)
       );
     }
+    //END: EXPENSES SECTION
 
+    //START: GOALS SECTION
     function goalItem(goal, actions) {
       const goalSummary = () => D().goals[goal.id] || {
         saved: 0,
@@ -382,6 +400,25 @@
       expandable(item, header, detail);
       return item;
     }
+
+    function goalsBody(actions) {
+      const { list, empty } = itemList('goals', () => true, goal => goalItem(goal, actions), 'No goals yet. Add the first one.');
+      return h(
+        'div',
+        {},
+        h('div', { class: 'li-wrap' }, list, empty),
+        totalsEl(() => [
+          ['Target total', money(sum(state.goals, 'target'))],
+          ['Saved so far', money(sum(Object.values(D().goals), 'saved'))],
+          ['Total per ' + periodUnit(), money(periodAmount(D().budgeted.savings))]
+        ]),
+        h('button', { class: 'add', type: 'button', onclick: () => actions.addGoal(list) }, 'Add goal')
+      );
+    }
+    //END: GOALS SECTION
+
+
+    //START: DEBT SECTION
     function debtItem(debt, actions) {
       const debtSummary = () => D().debts[debt.id] || {
         bal: 0,
@@ -460,20 +497,7 @@
       expandable(item, header, detail);
       return item;
     }
-    function goalsBody(actions) {
-      const { list, empty } = itemList('goals', () => true, goal => goalItem(goal, actions), 'No goals yet. Add the first one.');
-      return h(
-        'div',
-        {},
-        h('div', { class: 'li-wrap' }, list, empty),
-        totalsEl(() => [
-          ['Target total', money(sum(state.goals, 'target'))],
-          ['Saved so far', money(sum(Object.values(D().goals), 'saved'))],
-          ['Total per ' + periodUnit(), money(periodAmount(D().budgeted.savings))]
-        ]),
-        h('button', { class: 'add', type: 'button', onclick: () => actions.addGoal(list) }, 'Add goal')
-      );
-    }
+    
     function debtsBody(actions) {
       const list = h('div', { class: 'tx-card acc-list' });
       state.debts.slice().sort(byPriority).forEach(debt => list.append(debtItem(debt, actions)));
@@ -497,6 +521,7 @@
         h('button', { class: 'add', type: 'button', onclick: () => actions.addDebt(list) }, 'Add debt')
       );
     }
+    //END: DEBT SECTION
 
     const ring = p => `<span class="li-ring"><svg viewBox="0 0 44 44" width="44" height="44" aria-hidden="true"><circle class="rg-bg" cx="22" cy="22" r="18"/><circle class="rg-fg" cx="22" cy="22" r="18" stroke-dasharray="${(p / 100 * 113.1).toFixed(1)} 113.1" transform="rotate(-90 22 22)"${p < 0.5 ? ' style="display:none"' : ''}/></svg><b>${Math.round(p)}%</b></span>`;
     const progH = (saved, total) => {
@@ -505,6 +530,7 @@
         html: `<span class="mini"><i style="width:${percentage}%"></i></span>${money(saved, 0)} (${percentage.toFixed(0)}%)`
       };
     };
+    
     const dueDate = s => fmtDate(new Date(s + 'T00:00:00'));
     return {
       render: planView,
