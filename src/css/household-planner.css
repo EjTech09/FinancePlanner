@@ -650,7 +650,7 @@ h1 {
 }
 
 .accounts-summary-metric b.accounts-summary-balance {
-  color: black;
+  color: var(--label);
   background: none;
 }
 
