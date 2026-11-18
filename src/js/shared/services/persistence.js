@@ -37,6 +37,17 @@
   }
 
   function normalize(data) {
+    /*Pseudocode:
+    1. Fill in missing properties with defaults
+    2. Validate planPeriod
+    3. Ensure collections are arrays
+    4. Normalize frequency for income, expenses, goals, debts
+    5. Merge alloc and ui with defaults
+    6. Normalize fx rates and updatedAt
+    7. Convert commitment amounts to base currency if build < 3
+    */
+    if (!data || typeof data !== 'object') return blank();
+
     const defaults = blank();
     const dataBuild = Number(data.ui && data.ui.build) || 0;
 

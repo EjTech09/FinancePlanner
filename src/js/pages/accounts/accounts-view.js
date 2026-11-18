@@ -33,66 +33,164 @@
     function accItem(account, actions) {
       const accountSummary = () => D().accounts[account.id] || {
         bal: 0,
+        liab: 0,
         net: 0,
         committed: 0,
         free: 0,
         status: ''
       };
+
       const item = h('div', { class: 'acc-item', 'data-id': account.id });
-      const currencyChip = h('span', { 'data-calc': '' });
+      const currencyChip = h('span', { class: 'acc-card-currency', 'data-calc': '' });
       currencyChip._u = () => {
-        currencyChip.className = 'li-chip cur-' + (account.currency || 'none');
+        currencyChip.className = 'acc-card-currency cur-' + (account.currency || 'none');
         currencyChip.textContent = account.currency || '\u2014';
       };
       currencyChip._u();
 
       const header = h(
         'button',
-        { class: 'tx-row li', type: 'button', 'aria-expanded': 'false' },
-        currencyChip,
-        h('span', { class: 'tx-main' },
-          liv(() => esc(account.name || 'Untitled account'), 'b'),
-          liv(() => `${esc(nameOf('users', account.user) || 'No user')}, ${money(accountSummary().net)} after liabilities`, 'small'),
-          liv(() => {
-            const status = accountSummary().status;
-            return `<span class="pill ${cls(status)}" title="${esc(status)}">${esc(status)}</span>`;
-          }, 'span')
+        { class: 'acc-card-header', type: 'button', 'aria-expanded': 'false' },
+        h('span', { class: 'acc-card-id' },
+          currencyChip,
+          h('span', { class: 'acc-card-title' },
+            h('span', { class: 'acc-card-title-row' },
+              liv(() => esc(account.name || 'Untitled account'), 'b', 'acc-card-name'),
+              liv(() => {
+                const summary = accountSummary();
+                const isBad = summary.free < -MONEY_EPSILON;
+                const isFull = Math.abs(summary.free) < MONEY_EPSILON;
+                const kind = isBad ? 'bad' : isFull ? 'warn' : 'ok';
+                const text = isBad ? 'Over-committed' : isFull ? 'Fully committed' : 'Funds available';
+                return `<span class="acc-card-status ${kind}"><span class="acc-card-status-dot"></span>${esc(text)}</span>`;
+              }, 'span', 'acc-card-status-wrap')
+            ),
+            h('span', { class: 'acc-card-meta' },
+              h('span', { class: 'acc-card-owner' }, '\u25cb ', liv(() => esc(nameOf('users', account.user) || 'No user'), 'span')),
+              h('span', { class: 'acc-card-flow' },
+                liv(() => esc(account.currency || '\u2014'), 'span'),
+                h('span', { 'aria-hidden': 'true' }, ' \u2192 '),
+                h('span', {}, DOMAIN.DEFAULT_CURRENCY)
+              )
+            )
+          )
         ),
-        h('span', { class: 'tx-amt' },
+        h('span', { class: 'acc-card-metrics' },
+          h('span', { class: 'acc-card-metric' },
+            h('span', { class: 'acc-card-metric-label' }, 'Current balance'),
+            liv(() => money(accountSummary().bal), 'b', 'acc-card-metric-value'),
+            liv(() => {
+              const conversionRate = rate(account.currency);
+              const nativeBalance = conversionRate > 0 ? accountSummary().bal / conversionRate : 0;
+              return moneyCur(nativeBalance, account.currency);
+            }, 'small', 'acc-card-metric-native')
+          ),
+          h('span', { class: 'acc-card-divider', 'aria-hidden': 'true' }),
+          h('span', { class: 'acc-card-metric' },
+            h('span', { class: 'acc-card-metric-label' }, 'Free to use'),
+            liv(() => {
+              const free = accountSummary().free;
+              return `<b class="acc-card-metric-value ${free < -MONEY_EPSILON ? 'bad' : 'ok'}">${money(free)}</b>`;
+            }, 'span', 'acc-card-metric-wrap'),
+            h('small', { class: 'acc-card-metric-native' }, 'After set aside')
+          ),
+          h('span', { class: 'acc-card-chev', 'aria-hidden': 'true' }, '\u203a')
+        )
+      );
+
+      const deleteInitial = h('button', {
+        class: 'acc-card-delete',
+        type: 'button'
+      }, 'Delete account');
+      const deleteConfirm = h('div', { class: 'acc-card-delete-confirm', hidden: true },
+        h('button', {
+          class: 'btn danger',
+          type: 'button',
+          onclick: () => actions.deleteAccount(account)
+        }, 'Confirm delete'),
+        h('button', {
+          class: 'btn plain',
+          type: 'button',
+          onclick: () => {
+            deleteConfirm.hidden = true;
+            deleteInitial.hidden = false;
+            deleteInitial.focus();
+          }
+        }, 'Cancel')
+      );
+      deleteInitial.addEventListener('click', () => {
+        deleteInitial.hidden = true;
+        deleteConfirm.hidden = false;
+        deleteConfirm.querySelector('button').focus();
+      });
+
+      const detail = h('div', { class: 'li-detail acc-card-detail', hidden: true },
+        h('section', { class: 'acc-card-panel', 'aria-label': 'Account details' },
+          h('h3', { class: 'acc-card-panel-title' }, 'Account details'),
+          h('div', { class: 'acc-card-form' },
+            sRow('Account', field(sCol('Account', 'name', 'text', { ph: 'e.g. Everyday account' }), account)),
+            sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), account)),
+            sRow('Currency', field(sCol('Currency', 'currency', 'select', {
+                opts: curOpts,
+                onChange: (oldCurrency, newCurrency) =>
+                  service.convertAccountCommitments(account.id, oldCurrency, newCurrency)
+              }), account)),
+            sRow('Balance (' + account.currency + ')', field(sCol('Balance (' + account.currency + ')', 'balance', 'number'), account)),
+          )
+        ),
+        h('section', { class: 'acc-card-panel acc-card-summary', 'aria-label': 'NZD summary' },
+          h('div', { class: 'acc-card-panel-heading' },
+            h('h3', { class: 'acc-card-panel-title' }, 'NZD summary'),
+            h('span', { class: 'acc-card-base-currency' }, 'Base currency')
+          ),
+          liv(() => {
+            const summary = accountSummary();
+            const reserved = Math.max(summary.committed, 0);
+            const balance = Math.max(summary.bal, 0);
+            const ratio = balance > 0 ? (reserved / balance) * 100 : (reserved > 0 ? 100 : 0);
+            const width = Math.min(Math.max(ratio, 0), 100);
+            const stateClass = summary.free < -MONEY_EPSILON ? 'bad' : 'ok';
+            const hint = summary.free < -MONEY_EPSILON
+              ? `Exceeds balance by ${money(Math.abs(summary.free))}`
+              : `${money(summary.free)} available after set aside`;
+            return `<div class="acc-card-allocation">
+              <div class="acc-card-allocation-label"><span>Set aside vs. balance</span><b class="${stateClass}">${ratio.toFixed(1)}%</b></div>
+              <div class="acc-card-allocation-track"><span class="${stateClass}" style="width:${width}%"></span></div>
+              <p class="${stateClass}">${esc(hint)}</p>
+            </div>`;
+          }, 'div'),
+          h('dl', { class: 'acc-card-ledger' },
+            h('div', {}, h('dt', {}, 'Balance (' + account.currency + ')'), liv(() => money(accountSummary().bal), 'dd')),
+            h('div', {}, h('dt', {}, 'Set aside (' + account.currency + ')'), liv(() => money(accountSummary().committed), 'dd')),
+            h('div', { class: 'acc-card-ledger-status' },
+              h('dt', {}, 'Status'),
+              liv(() => {
+                const status = accountSummary().status;
+                const kind = accountSummary().free < -MONEY_EPSILON ? 'bad' : 'ok';
+                return `<span class="acc-card-status ${kind}"><span class="acc-card-status-dot"></span>${esc(status)}</span>`;
+              }, 'dd')
+            )
+          ),
           liv(() => {
             const free = accountSummary().free;
-            return `<span class="${free < -MONEY_EPSILON ? 'bad' : ''}">${money(free)}</span>`;
-          }, 'b'),
-          h('small', {}, 'free to use')
+            const stateClass = free < -MONEY_EPSILON ? 'bad' : 'ok';
+            return `<div class="acc-card-free-callout ${stateClass}">
+              <span><b>Free to use (NZD)</b><small>Net spendable funds</small></span>
+              <b class="${stateClass}">${money(free)}</b>
+            </div>`;
+          }, 'div')
         ),
-        h('span', { class: 'tx-chev', 'aria-hidden': 'true' }, '\u203a')
+        h('footer', { class: 'acc-card-footer' },
+          liv(() => {
+            const conversionRate = rate(account.currency);
+            return `<span class="acc-card-fx"><span class="acc-card-fx-dot"></span>1 ${esc(account.currency || '\u2014')} = ${conversionRate.toFixed(5)} NZD</span>`;
+          }, 'span'),
+          h('span', { class: 'acc-card-delete-actions' }, deleteInitial, deleteConfirm)
+        )
       );
-      const detail = h('div', { class: 'li-detail', hidden: true },
-        h('div', { class: 'fgroup' },
-          sRow('Account', field(sCol('Account', 'name', 'text', { ph: 'e.g. Everyday account' }), account)),
-          sRow('User', field(sCol('User', 'user', 'select', { opts: userOpts }), account)),
-          sRow('Currency', field(sCol('Currency', 'currency', 'select', {
-            opts: curOpts,
-            onChange: (oldCurrency, newCurrency) =>
-              service.convertAccountCommitments(account.id, oldCurrency, newCurrency)
-          }), account)),
-          sRow('Opening balance', field(sCol('Opening balance', 'balance', 'number'), account)),
-          sRow('Liabilities due', field(sCol('Liabilities due', 'liabilities', 'number'), account))
-        ),
-        h('div', { class: 'fgroup' },
-          sCalc('Balance (NZD)', () => money(accountSummary().bal)),
-          sCalc('After liabilities', () => money(accountSummary().net)),
-          sCalc('Set aside (NZD)', () => money(accountSummary().committed)),
-          sCalc('Free to use', () => money(accountSummary().free)),
-          sCalc('Status', () => {
-            const status = accountSummary().status;
-            return { t: status, cls: cls(status) };
-          })
-        ),
-        h('button', { class: 'btn danger full', type: 'button', onclick: () => {
-          actions.deleteAccount(account);
-        } }, 'Delete account'));
+
       expandable(item, header, detail);
+      
       item._check = () => {
         if (!service.accMatch(account)) item.remove();
       };
@@ -178,7 +276,7 @@
     function accountsTile(actions) {
       const { list, empty } = itemList('accounts', service.accMatch, account => accItem(account, actions), 'No accounts for this selection. Add one below.');
       return tile(
-        12,
+        7,
         {},
         h('h2', {}, 'Account balances'),
         h('p', { class: 'sub' }, 'Tap an account to see and edit everything. Opening balances are adjusted by transactions. Liabilities are bills due soon. Set aside is money already promised, listed in the next section.'),
@@ -203,8 +301,8 @@
     function setAsideTile(actions) {
       const { list, empty } = itemList('commitments', service.comMatch, commitment => comItem(commitment, actions), 'Nothing set aside for this selection yet. Add a line below.');
       return tile(
-        12,
-        {},
+        5,
+        { class: 'set-aside-tile' },
         h('h2', {}, 'Money set aside'),
         h('p', { class: 'sub' }, 'Each amount uses its selected account currency. The combined total is shown in NZD. Tap a line to edit it.'),
         h('div', { class: 'li-wrap' }, list, empty),
@@ -220,6 +318,64 @@
           ];
         }),
         h('button', { class: 'add', type: 'button', onclick: () => actions.addCommitment(list) }, 'Add a line')
+      );
+    }
+
+    function accountsSummary() {
+      const summary = liv(() => {
+        const accounts = service.visibleAccounts()
+          .map(account => D().accounts[account.id])
+          .filter(Boolean);
+        const balance = sum(accounts, 'bal');
+        const liabilities = sum(accounts, 'liab');
+        const committed = sum(accounts, 'committed');
+        const net = sum(accounts, 'net');
+        const free = sum(accounts, 'free');
+        const positiveFree = Math.max(free, 0);
+        const positiveLiabilities = Math.max(liabilities, 0);
+        const positiveCommitted = Math.max(committed, 0);
+        const scale = Math.max(
+          balance,
+          positiveLiabilities + positiveCommitted + positiveFree,
+          1
+        );
+        const liabilityWidth = positiveLiabilities / scale * 100;
+        const committedWidth = positiveCommitted / scale * 100;
+        const freeWidth = positiveFree / scale * 100;
+        const remainingWidth = Math.max(
+          100 - liabilityWidth - committedWidth - freeWidth,
+          0
+        );
+        const freeClass = free < -MONEY_EPSILON ? 'bad' : 'ok';
+        const barSegments =
+          `<i class="accounts-summary-set-aside" style="width:${committedWidth}%"></i>` +
+          `<i class="accounts-summary-free" style="width:${freeWidth}%"></i>` +
+          `<i class="accounts-summary-remaining" style="width:${remainingWidth}%"></i>` +
+          (free < -MONEY_EPSILON
+            ? `<i class="accounts-summary-over" style="width:${Math.min(Math.abs(free) / scale * 100, 100)}%"></i>`
+            : '');
+
+        return `
+          <div class="accounts-summary-row">
+            <div class="accounts-summary-metric">
+              <small>Total Balance</small>
+              <b class="accounts-summary-balance">${money(balance)}</b>
+            </div>
+            <div class="accounts-summary-metric">
+              <small>Set aside</small>
+              <b class="accounts-summary-set-aside">${money(committed)}</b>
+            </div>
+            <div class="accounts-summary-metric accounts-summary-left ${freeClass}">
+              <small>${free < -MONEY_EPSILON ? 'Over-committed by' : 'Free to use'}</small>
+              <b>${money(Math.abs(free))}</b>
+            </div>
+          </div>
+          <div class="accounts-summary-bar" role="img" aria-label="Account balance split by liabilities, set aside, free funds, and remaining balance">
+            ${barSegments}
+          </div>`;
+      }, 'div', 'accounts-summary-content');
+      return h('section', { class: 'accounts-summary', 'aria-label': 'Selected account summary' },
+        summary
       );
     }
 
@@ -260,19 +416,9 @@
         actions.setAccountFilter,
         'Filter by user'
       );
-      el.append(h('div', { class: 'toolbar' }, filter));
-
-      const selectedTotal = key => () => {
-        const accounts = service.visibleAccounts()
-          .map(account => D().accounts[account.id])
-          .filter(Boolean);
-        return money(sum(accounts, key), 0);
-      };
+      el.append(h('div', { class: 'toolbar accounts-toolbar' }, filter));
+      el.append(accountsSummary());
       el.append(bento(
-        kpiTile('Balance (NZD)', selectedTotal('bal'), 'all selected accounts'),
-        kpiTile('After liabilities', selectedTotal('net'), 'balance less bills due'),
-        kpiTile('Set aside', selectedTotal('committed'), 'promised to something'),
-        kpiTile('Free to use', selectedTotal('free'), 'after liabilities and set aside'),
         accountsTile(actions), setAsideTile(actions)));
       return el;
     };

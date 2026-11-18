@@ -96,9 +96,20 @@
         const shouldOpen = isOpen == null
           ? header.getAttribute('aria-expanded') !== 'true'
           : isOpen;
+        if (shouldOpen && item.parentElement) {
+          Array.from(item.parentElement.children).forEach(sibling => {
+            if (sibling !== item && sibling.classList.contains('open') && sibling._open) {
+              sibling._open(false);
+            }
+          });
+        }
         header.setAttribute('aria-expanded', String(shouldOpen));
         detail.hidden = !shouldOpen;
         item.classList.toggle('open', shouldOpen);
+        if (shouldOpen) {
+          header.focus({ preventScroll: true });
+          item.scrollIntoView({ block: 'nearest' });
+        }
       };
       header.addEventListener('click', () => setOpen());
       item._open = setOpen;

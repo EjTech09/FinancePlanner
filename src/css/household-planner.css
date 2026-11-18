@@ -202,7 +202,7 @@ h1 {
 .sub {
   color: var(--label2);
   margin: 6px 0 0;
-  max-width: 62ch;
+  max-width: 72ch;
   font-size: 15px;
 }
 
@@ -270,6 +270,21 @@ h1 {
 
   .bento {
     gap: 12px;
+  }
+
+  .accounts-summary {
+    padding: 12px 14px 14px;
+  }
+
+  .accounts-summary-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .accounts-summary-metric b,
+  .accounts-summary-left b {
+    font-size: 18px;
   }
 }
 
@@ -587,6 +602,123 @@ h1 {
 .tracker .split {
   height: 12px;
   margin: 10px 0 0;
+}
+
+/* Accounts summary header */
+.accounts-summary {
+  position: relative;
+  margin: 0 0 16px;
+  padding: 14px 20px 16px;
+  border-radius: 22px;
+  background: var(--material);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  backdrop-filter: saturate(180%) blur(24px);
+  border: 0.5px solid var(--sep);
+  overflow: hidden;
+}
+
+.accounts-summary-content {
+  min-width: 0;
+  width: 100%;
+}
+
+.accounts-toolbar {
+  justify-content: flex-end;
+}
+
+.accounts-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 6px 36px;
+}
+
+.accounts-summary-metric small {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--label2);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.accounts-summary-metric b {
+  display: block;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
+.accounts-summary-metric b.accounts-summary-balance {
+  color: black;
+  background: none;
+}
+
+.accounts-summary-metric b.accounts-summary-liabilities {
+  color: var(--orange-t);
+  background: none;
+}
+
+.accounts-summary-metric b.accounts-summary-set-aside {
+  color: var(--blue-t);
+  background: none;
+}
+
+.accounts-summary-left b {
+  font-size: 22px;
+  font-weight: 1000;
+  background: none;
+}
+
+.accounts-summary-left.bad b,
+.accounts-summary-left.bad small {
+  color: var(--red-t);
+}
+
+.accounts-summary-left.ok b {
+  color: var(--green-t);
+}
+
+.accounts-summary-left.ok small {
+  color: var(--label2);
+}
+
+.accounts-summary-bar {
+  display: flex;
+  height: 12px;
+  margin: 10px 0 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--fill2);
+  gap: 2px;
+  direction: ltr;
+}
+
+.accounts-summary-bar i {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  transition: width 0.25s ease;
+}
+
+.accounts-summary-bar .accounts-summary-liabilities {
+  background: var(--orange);
+}
+
+.accounts-summary-bar .accounts-summary-set-aside {
+  background: var(--blue);
+}
+
+.accounts-summary-bar .accounts-summary-free {
+  background: var(--green);
+}
+
+.accounts-summary-bar .accounts-summary-remaining {
+  background: rgba(120, 120, 128, 0.12);
+}
+
+.accounts-summary-bar .accounts-summary-over {
+  background: var(--red);
 }
 
 .sec-head {
@@ -1073,6 +1205,38 @@ nav button:active {
   .app {
     display: flex;
     flex-direction: column;
+  }
+
+  .accounts-toolbar {
+    justify-content: flex-end;
+  }
+
+  .accounts-toolbar .seg {
+    max-width: 100%;
+  }
+
+  .accounts-summary {
+    display: flex;
+    flex-direction: column;
+    padding: 14px 16px 16px;
+  }
+
+  .accounts-summary-content {
+    padding-right: 0;
+  }
+
+  .accounts-summary-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 12px;
+  }
+
+  .accounts-summary-metric {
+    min-width: 0;
+  }
+
+  .accounts-summary-metric small {
+    white-space: nowrap;
   }
 
   main {
@@ -2028,6 +2192,595 @@ tfoot td.tl {
 
 .acc-list:empty {
   display: none;
+}
+
+/* Redesigned account cards */
+.acc-item {
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--sep);
+}
+
+.acc-item + .acc-item {
+  border-top: 1px solid var(--sep);
+  margin-top: 10px;
+}
+
+.acc-item.open {
+  background: var(--card);
+  box-shadow: 0 12px 28px -18px rgba(0, 0, 0, 0.55);
+}
+
+.acc-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  min-height: 104px;
+  border: 0;
+  background: none;
+  color: var(--label);
+  padding: 16px 18px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+.acc-card-header:hover {
+  background: var(--fill);
+}
+
+.acc-card-header:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--blue) 45%, transparent);
+  outline-offset: -3px;
+}
+
+.acc-card-id,
+.acc-card-title,
+.acc-card-title-row,
+.acc-card-meta,
+.acc-card-metrics,
+.acc-card-metric,
+.acc-card-metric-wrap {
+  display: flex;
+}
+
+.acc-card-id {
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.acc-card-currency {
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: var(--fill);
+  color: var(--label2);
+  border: 1px solid var(--sep);
+}
+
+.acc-card-currency.cur-NZD {
+  background: color-mix(in srgb, var(--blue) 15%, var(--card));
+  color: var(--blue-t);
+  border-color: color-mix(in srgb, var(--blue) 24%, var(--sep));
+}
+
+.acc-card-currency.cur-PHP {
+  background: color-mix(in srgb, var(--green) 16%, var(--card));
+  color: var(--green-t);
+  border-color: color-mix(in srgb, var(--green) 24%, var(--sep));
+}
+
+.acc-card-currency.cur-USD {
+  background: color-mix(in srgb, var(--orange) 18%, var(--card));
+  color: var(--orange-t);
+  border-color: color-mix(in srgb, var(--orange) 24%, var(--sep));
+}
+
+.acc-card-title {
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.acc-card-title-row {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.acc-card-name {
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.acc-card-status-wrap,
+.acc-card-status {
+  display: inline-flex;
+}
+
+.acc-card-status {
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.acc-card-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.acc-card-status.ok {
+  color: var(--green-t);
+  background: color-mix(in srgb, var(--green) 14%, transparent);
+  border-color: color-mix(in srgb, var(--green) 24%, transparent);
+}
+
+.acc-card-status.bad {
+  color: var(--red-t);
+  background: color-mix(in srgb, var(--red) 14%, transparent);
+  border-color: color-mix(in srgb, var(--red) 24%, transparent);
+}
+
+.acc-card-status.warn {
+  color: var(--orange-t);
+  background: color-mix(in srgb, var(--orange) 14%, transparent);
+  border-color: color-mix(in srgb, var(--orange) 24%, transparent);
+}
+
+.acc-card-meta {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--label2);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.acc-card-owner,
+.acc-card-flow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border: 1px solid var(--sep);
+  border-radius: 8px;
+  padding: 3px 8px;
+  background: var(--fill);
+  color: var(--label2);
+}
+
+.acc-card-metrics {
+  align-items: center;
+  justify-content: flex-end;
+  gap: 18px;
+  flex: 0 0 auto;
+}
+
+.acc-card-metric {
+  min-width: 118px;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.acc-card-metric-label {
+  margin-bottom: 2px;
+  color: var(--label2);
+  font-size: 10px;
+  line-height: 1.2;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.acc-card-metric-value {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 750;
+}
+
+.acc-card-metric-native {
+  margin-top: 3px;
+  color: var(--label2);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.acc-card-metric-wrap {
+  align-items: baseline;
+}
+
+.acc-card-divider {
+  width: 1px;
+  height: 44px;
+  background: var(--sep);
+}
+
+.acc-card-chev {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sep);
+  border-radius: 9px;
+  color: var(--label2);
+  font-size: 22px;
+  line-height: 1;
+  transition: transform 0.2s, background 0.15s;
+}
+
+.acc-card-header:hover .acc-card-chev {
+  background: var(--fill2);
+  color: var(--label);
+}
+
+.acc-card-header[aria-expanded="true"] .acc-card-chev {
+  transform: rotate(90deg);
+}
+
+.acc-card-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 7fr) minmax(280px, 5fr);
+  gap: 16px;
+  align-items: stretch;
+  border-top: 1px solid var(--sep);
+  padding: 16px;
+  background: color-mix(in srgb, var(--bg) 42%, var(--card));
+}
+
+.acc-card-detail[hidden] {
+  display: none;
+}
+
+.acc-card-panel {
+  min-width: 0;
+  border: 1px solid var(--sep);
+  border-radius: 14px;
+  background: var(--card);
+  padding: 16px;
+}
+
+.acc-card-panel-title {
+  margin: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--sep);
+  color: var(--label2);
+  font-size: 12px;
+  line-height: 1.2;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.acc-card-panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.acc-card-panel-heading .acc-card-panel-title {
+  flex: 1;
+}
+
+.acc-card-base-currency {
+  border: 1px solid var(--sep);
+  border-radius: 6px;
+  padding: 4px 7px;
+  color: var(--label2);
+  background: var(--fill);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.acc-card-form {
+  display: grid;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.acc-card-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.acc-card-form-grid .frow {
+  margin: 0;
+}
+
+.acc-card-summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.acc-card-allocation {
+  margin-bottom: 12px;
+  border: 1px solid var(--sep);
+  border-radius: 10px;
+  background: var(--card2);
+  padding: 10px 12px;
+}
+
+.acc-card-allocation-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  color: var(--label2);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.acc-card-allocation-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--fill2);
+}
+
+.acc-card-allocation-track span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--green);
+  transition: width 0.25s ease;
+}
+
+.acc-card-allocation-track span.bad {
+  background: var(--red);
+}
+
+.acc-card-allocation p {
+  margin: 7px 0 0;
+  font-size: 11px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.acc-card-ledger {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.acc-card-ledger > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  border-bottom: 1px dashed var(--sep);
+  font-size: 13px;
+}
+
+.acc-card-ledger dt {
+  color: var(--label2);
+}
+
+.acc-card-ledger dd {
+  margin: 0;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.acc-card-ledger-status {
+  border-bottom: 0 !important;
+}
+
+.acc-card-free-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: auto;
+  border: 1px solid color-mix(in srgb, var(--green) 35%, var(--sep));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--green) 9%, var(--card));
+  padding: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.acc-card-free-callout.bad {
+  border-color: color-mix(in srgb, var(--red) 35%, var(--sep));
+  background: color-mix(in srgb, var(--red) 9%, var(--card));
+}
+
+.acc-card-free-callout > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.acc-card-free-callout small {
+  color: var(--label2);
+  font-size: 10px;
+}
+
+.acc-card-footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--sep);
+  padding-top: 12px;
+  grid-column: 1 / -1;
+}
+
+.acc-card-fx {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--label2);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.acc-card-fx-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.acc-card-delete-actions,
+.acc-card-delete-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.acc-card-delete-actions {
+  justify-content: flex-end;
+}
+
+.acc-card-delete {
+  min-height: 44px;
+  border: 1px solid color-mix(in srgb, var(--red) 28%, var(--sep));
+  border-radius: 10px;
+  background: transparent;
+  color: var(--red-t);
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.acc-card-delete:hover {
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+}
+
+.acc-card-delete-confirm[hidden],
+.acc-card-delete[hidden] {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  .acc-card-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .acc-card-metrics {
+    justify-content: space-between;
+    width: 100%;
+    border-top: 1px solid var(--sep);
+    padding-top: 12px;
+  }
+
+  .acc-card-metric {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .acc-card-metric-wrap {
+    justify-content: flex-start;
+  }
+
+  .acc-card-divider {
+    margin-left: auto;
+  }
+
+  .acc-card-detail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .acc-card-header {
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .acc-card-id {
+    align-items: flex-start;
+  }
+
+  .acc-card-name {
+    max-width: 210px;
+  }
+
+  .acc-card-metrics {
+    gap: 10px;
+  }
+
+  .acc-card-metric {
+    min-width: 0;
+  }
+
+  .acc-card-metric-value {
+    font-size: 16px;
+  }
+
+  .acc-card-chev {
+    width: 30px;
+    height: 30px;
+    flex-basis: 30px;
+  }
+
+  .acc-card-detail {
+    padding: 12px;
+  }
+
+  .acc-card-panel {
+    padding: 12px;
+  }
+
+  .acc-card-form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .acc-card-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .acc-card-delete-actions,
+  .acc-card-delete-confirm {
+    width: 100%;
+  }
+
+  .acc-card-delete-actions {
+    justify-content: stretch;
+  }
+
+  .acc-card-delete,
+  .acc-card-delete-confirm .btn {
+    flex: 1;
+  }
 }
 
 .li-chip {
